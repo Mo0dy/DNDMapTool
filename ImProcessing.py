@@ -70,6 +70,15 @@ def alpha_blend_nb(F, B, A):
                 B[i, j, c] = a * F[i, j, c] + (1 - a) * B[i, j, c]
 
 
+@nb.guvectorize([(nb.uint8[:, :, :], nb.float64[:, :])], '(a,b,c),(a,b)', target="parallel", fastmath=True)
+def darken_maks(B, A):
+    for i in range(B.shape[0]):
+        for j in range(B.shape[1]):
+            if A[i, j]:
+                for c in range(B.shape[2]):
+                    B[i, j, c] = B[i, j, c] / 2
+
+
 def edge_detect(img):
     blur = cv.GaussianBlur(cv.cvtColor(img, cv.COLOR_BGR2GRAY), (5, 5), 0)
     return cv.Canny(blur, 250, 255)

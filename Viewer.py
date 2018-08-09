@@ -1,6 +1,7 @@
 import cv2 as cv
 from DNDMapTool.Game import Game
 import numpy as np
+import time
 
 
 # the properties that can be changes
@@ -10,6 +11,7 @@ PROP_GRIDLINES = 2  # show gridlines (boolean)
 PROP_PLAYERS = 3  # show players
 PROP_UPDATE_MAIN = 4  # should the main window be updated?
 PROP_GM_VIEW = 5  # the current state of the gm view
+PROP_SHOW_TOKEN = 6
 
 
 # the settings for the properties
@@ -48,7 +50,8 @@ class Viewer(object):
             PROP_GRIDLINES: True,
             PROP_PLAYERS: True,
             PROP_UPDATE_MAIN: True,
-            PROP_GM_VIEW: STATE_NORMAL
+            PROP_GM_VIEW: STATE_NORMAL,
+            PROP_SHOW_TOKEN: True,
         }
 
         self.main_view = View()
@@ -66,6 +69,9 @@ class Viewer(object):
         elif self.states[PROP_VIEW] == STATE_MAPVIEW:
             params = {"fow": "tv"}  # the parameters that will be asked for in the image
 
+            if self.states[PROP_SHOW_TOKEN]:
+                params["tokens"] = True
+
             # only update main if allowed
             if self.states[PROP_UPDATE_MAIN]:
                 self.main_view.set_img(self.game.curr_map().get_img(**params))
@@ -80,8 +86,8 @@ class Viewer(object):
                     params["gridlines"] = True
                 params["fow"] = "gm"
                 params["dm"] = True
+                params["tokens"] = True
                 self.gm_view.set_img(self.game.curr_map().get_img(**params))
-
         # actually show the images created
         self.gm_view.show("gm")
         self.main_view.show("main")

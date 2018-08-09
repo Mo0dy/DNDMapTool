@@ -3,6 +3,7 @@ import numpy as np
 import os
 from DNDMapTool.Game import Game
 from DNDMapTool.Map import Map
+from DNDMapTool.Token import Token, descrip_type
 import configparser as cfgp
 import re
 
@@ -18,7 +19,10 @@ def load_img(path, **kwargs):
         filetype = kwargs["filetype"]
     else:
         filetype = ".jpg"
-    img = np.array(cv.imread(path + filetype)).astype(np.uint8)
+    if "load_alpha" in kwargs and kwargs["load_alpha"]:
+        img = np.array(cv.imread(path + filetype, cv.IMREAD_UNCHANGED)).astype(np.uint8)
+    else:
+        img = np.array(cv.imread(path + filetype)).astype(np.uint8)
     # rotate the image so that the largest dimension is x (columns)
     if "autorotate" in kwargs and kwargs["autorotate"]:
         # rotate if y dim is greater then x dim
@@ -83,7 +87,33 @@ def load_game(path, name):
     print(len(game.maps))
     return game
 
+
+def load_tokens(path):
+    tokens = []
+    for x in os.walk(path):
+        for file in x[2]:
+            name = re.sub("\..*$", "", file)
+            descriptors = {}
+            for d in name.split("_"):
+                if d.isdigit():
+                    continue
+                d_type = descrip_type(d)
+                if d_type:
+                    descriptors[d_type] = d.lower()
+            img = load_img(path + "\\" + name, filetype=".png", load_alpha=True)[0]  #removes file ending and loads image
+            token = Token(img[:, :, :3], img[:, :, 3], descriptors)
+            tokens.append(token)
+    return tokens
+
+
 if __name__ == "__main__":
-    path = r"C:\Users\Felix\Google Drive\D&D\Stories\LostMineOfPhandelver\MainMap"
-    load_img(path, autorotate=True)
+    path = r"Tokens"
+    img = cv.resize(np.array(cv.imread("OldMap.jpg")), (1500, 700))
+    tokens = load_tokens(path)
+    tokens[0].blit(img, (400, 500), 100, 100)
+    cv.imshow("test", img)
+
+
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 

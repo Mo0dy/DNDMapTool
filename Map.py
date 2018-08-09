@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 import DNDMapTool.ImProcessing as process
+import time
 
 
 class Map(object):
@@ -27,7 +28,29 @@ class Map(object):
 
         self.update_image(img)
 
+        self.tokens = {}  # the player grid and the tokens hold the same information. here every token is associated with a position
+        self.play_grid = None  # the actual grid that gets played in. each cell can hold one piece
+
+    # add token to both the tokens dict and the play grid
+    def add_token(self, token, pos):
+        self.tokens[token] = pos
+        self.play_grid[pos[0]][pos[1]] = token
+
+    # remove token from both the tokens dict and the play grid
+    def remove_token(self, token):
+        self.play_grid[self.tokens[token][0]][self.tokens[token][1]] = None
+        del self.tokens[token]
+
+    def token_at(self, gridpos):  #returns token at y and x pos
+        return self.play_grid[gridpos[0]][gridpos[1]]
+
+    def move_token(self, token, n_pos):
+        self.play_grid[self.tokens[token][0]][self.tokens[token][1]] = None
+        self.tokens[token] = n_pos
+        self.play_grid[self.tokens[token][0]][self.tokens[token][1]] = token
+
     def update_grid(self):
+        self.play_grid = [[None] * self.nx for _ in range(self.ny)]
         # a boolean array where the gridlinepixels are True
         self.grid = np.zeros(self.img.shape[:2]).astype(np.bool)
         for i in range(0, self.nx + 1):
@@ -67,11 +90,17 @@ class Map(object):
 
     def px_to_coor(self, x, y):
         # returns coor in j, i
-        return [int((y - self.myt) // self.dy), int((x - self.mxl) // self.dx)]
+        if self.dx and self.dy:
+            return [int((y - self.myt) // self.dy), int((x - self.mxl) // self.dx)]
+        else:
+            return int(x), int(y)
 
     def coor_to_px_mid(self, coor):
         j, i = coor
-        return int((i + 0.5) * self.dx) + self.mxl, int((j + 0.5) * self.dy) + self.myt
+        if self.dx and self.dy:
+            return int((j + 0.5) * self.dy) + self.myt, int((i + 0.5) * self.dx) + self.mxl
+        else:
+            return coor
 
     def clear_fog(self, coor, rad):
         cv.circle(self.fog, (coor[1], coor[0]), rad, 0, -1)
@@ -94,12 +123,25 @@ class Map(object):
                 else:
                     color = (50, 50, 50)  # standard gray color
                 t_img[self.grid] = color  # self.grid holds a boolean array in which the gridlines are predrawn
+        if "tokens" in kwargs.keys() and kwargs["tokens"]:
+            # display tokens
+            for t, grid_pos in self.tokens.items():
+                pos = self.coor_to_px_mid(grid_pos)  # this also needs to be transformed
+                # use dx and dy if gridlines are allowed
+                if self.dx and self.dy:
+                    dx = self.dx
+                    dy = self.dy
+                else:
+                    dx = 100
+                    dy = 100
+                t.blit(t_img, pos, dx, dy)
         if "fow" in kwargs.keys():
             if kwargs["fow"].lower() == "tv":
-                # t_img = process.alpha_blend(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))
+                # t_img = process.alpha_blend(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))#
                 process.alpha_blend_nb(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))
             elif kwargs["fow"].lower() == "gm":
-                t_img[self.fog.astype(np.bool)] //= 2  # make the fow regions darker for gm
+                # t_img[self.fog.astype(np.bool)] //= 2  # make the fow regions darker for gm
+                process.darken_maks(t_img, self.fog)
         if "border" in kwargs and kwargs["border"]:
             # add red border
             t_img[self.border, :2] = 0
