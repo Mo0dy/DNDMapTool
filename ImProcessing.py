@@ -51,6 +51,24 @@ def con_reg_edges(edges, r_arr, start_coor, inverse=False):
                         r_arr[tuple(coor)] = True
                         stack.append(n_coor)
 
+# blend F onto B unsing A as aplha
+def alpha_blend(F, B, A):
+    a = A / 255
+    ret_arr = np.zeros(F.shape)
+    ret_arr[:, :, 0] = a * F[:, :, 0] + (1 - a) * B[:, :, 0]
+    ret_arr[:, :, 1] = a * F[:, :, 1] + (1 - a) * B[:, :, 1]
+    ret_arr[:, :, 2] = a * F[:, :, 2] + (1 - a) * B[:, :, 2]
+    return ret_arr.astype(np.uint8)
+
+
+@nb.guvectorize([(nb.uint8[:, :, :], nb.uint8[:, :, :], nb.float64[:, :])], '(a,b,c),(a,b,c),(a,b)', target="parallel", fastmath=True)
+def alpha_blend_nb(F, B, A):
+    for i in range(F.shape[0]):
+        for j in range(F.shape[1]):
+            a = A[i, j] / 255
+            for c in range(F.shape[2]):
+                B[i, j, c] = a * F[i, j, c] + (1 - a) * B[i, j, c]
+
 
 def edge_detect(img):
     blur = cv.GaussianBlur(cv.cvtColor(img, cv.COLOR_BGR2GRAY), (5, 5), 0)
