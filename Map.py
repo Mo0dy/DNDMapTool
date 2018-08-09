@@ -6,6 +6,7 @@ import DNDMapTool.ImProcessing as process
 class Map(object):
     def __init__(self, name="default", img=None, nx=0, ny=0, mxl=0, mxr=0, myt=0, myb=0):
         self.name = name
+        self.dm_img = None
         self.img = None
         self.grid = None  # the grid that is played in as a boolean image mask
         self.fog = None  # the alpha values for fow
@@ -14,6 +15,9 @@ class Map(object):
         # the amount of cells
         self.nx = nx
         self.ny = ny
+
+        self.dx = None
+        self.dy = None
 
         # margins
         self.mxr = mxr
@@ -37,12 +41,11 @@ class Map(object):
     def update_image(self, n_img=None):
         if np.any(n_img):
             self.img = n_img.copy()
-            self.update_squares()
-        if np.any(self.img) and self.dx * self.dy:
-            self.update_grid()
-            self.update_border()
-            self.fog = np.ones(self.img.shape[:2]) * 255  # alpha values for adding the fow onto the map
             self.update_fow_map()
+            self.fog = np.ones(self.img.shape[:2]) * 255  # alpha values for adding the fow onto the map
+            self.update_border()
+        if np.any(self.img) and self.nx * self.ny:
+            self.update_squares()
 
     def update_squares(self):
         # tilesize
@@ -60,7 +63,7 @@ class Map(object):
 
     def update_fow_map(self):
         from DNDMapTool.RecourceManager import load_img
-        self.old_map = cv.resize(load_img("OldMap"), (self.img.shape[1], self.img.shape[0]))
+        self.old_map = cv.resize(load_img("OldMap")[0], (self.img.shape[1], self.img.shape[0]))
 
     def px_to_coor(self, x, y):
         # returns coor in j, i
@@ -78,13 +81,19 @@ class Map(object):
 
     # returns the mapimage (kwargs can modify the image: gridlines, grid_color, fow)
     def get_img(self, **kwargs):
-        t_img = self.img.copy()
+        # if dm image is requested
+        if "dm" in kwargs and kwargs["dm"] and np.any(self.dm_img):
+            t_img= self.dm_img.copy()
+        else:
+            t_img = self.img.copy()
         if "gridlines" in kwargs.keys() and kwargs["gridlines"]:
-            if "grid_color" in kwargs.keys() and kwargs["grid_color"]:
-                color = kwargs["grid_color"]
-            else:
-                color = (50, 50, 50)  # standard gray color
-            t_img[self.grid] = color  # self.grid holds a boolean array in which the gridlines are predrawn
+            # make sure there is a grid for this image
+            if np.any(self.grid):
+                if "grid_color" in kwargs.keys() and kwargs["grid_color"]:
+                    color = kwargs["grid_color"]
+                else:
+                    color = (50, 50, 50)  # standard gray color
+                t_img[self.grid] = color  # self.grid holds a boolean array in which the gridlines are predrawn
         if "fow" in kwargs.keys():
             if kwargs["fow"].lower() == "tv":
                 # t_img = process.alpha_blend(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))

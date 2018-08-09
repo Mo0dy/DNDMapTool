@@ -37,13 +37,6 @@ def mouse_callback(event, x, y, flags, param):
         viewer.update()
 
 
-def toggle_fullscreen():
-    if cv.getWindowProperty("main_window", cv.WND_PROP_FULLSCREEN) == cv.WINDOW_FULLSCREEN:
-        cv.setWindowProperty("main_window", cv.WND_PROP_FULLSCREEN, cv.WINDOW_NORMAL)
-    else:
-        cv.setWindowProperty("main_window", cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
-
-
 cv.setMouseCallback("gm", mouse_callback)
 while True:
     k = cv.waitKey(1)
@@ -54,8 +47,6 @@ while True:
             viewer.set_prop(Viewer.PROP_VIEW, Viewer.STATE_MAPVIEW)
         else:
             viewer.set_prop(Viewer.PROP_VIEW, Viewer.STATE_OVERVIEW)
-    elif k == ord("f"):
-        toggle_fullscreen()
     elif k == ord("t"):
         # toggle gridlines
         viewer.inv_prop(Viewer.PROP_GRIDLINES)
@@ -67,6 +58,12 @@ while True:
             viewer.set_prop(Viewer.PROP_GM_VIEW, Viewer.STATE_NORMAL)
         else:
             viewer.set_prop(Viewer.PROP_GM_VIEW, Viewer.STATE_PREVIEW)
+    elif k == ord("f"):  # toogle fullscreen
+        viewer.toggle_fullscreen()
+    elif k == ord("z"):
+        viewer.prev_map()
+    elif k == ord("x"):
+        viewer.next_map()
 
 
 cv.destroyAllWindows()

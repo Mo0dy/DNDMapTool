@@ -6,6 +6,7 @@ class Game(object):
     def __init__(self, name, overview_map=None, maps=[]):
         self.name = name
         self.overview_map = overview_map
+        self.overview_map_dm = None
         self.maps = maps
         self.curr_map_index = 0
 

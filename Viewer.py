@@ -54,13 +54,15 @@ class Viewer(object):
         self.main_view = View()
         self.gm_view = View()
 
-        cv.namedWindow("main")  # the main window on the TV
-        cv.namedWindow("gm")  # the secondary window for the gm
+        cv.namedWindow("main", cv.WINDOW_NORMAL)  # the main window on the TV
+        cv.namedWindow("gm", cv.WINDOW_NORMAL)  # the secondary window for the gm
 
     # the main update function governing what will be shown
     def update(self):
-        if self.states[PROP_UPDATE_MAIN] and self.states[PROP_VIEW] == STATE_OVERVIEW:
-            self.main_view.set_img(self.game.overview_map)
+        if self.states[PROP_VIEW] == STATE_OVERVIEW:
+            if self.states[PROP_UPDATE_MAIN]:
+                self.main_view.set_img(self.game.overview_map)
+            self.gm_view.set_img(self.game.overview_map_dm)
         elif self.states[PROP_VIEW] == STATE_MAPVIEW:
             params = {"fow": "tv"}  # the parameters that will be asked for in the image
 
@@ -77,6 +79,7 @@ class Viewer(object):
                 if self.states[PROP_GRIDLINES]:
                     params["gridlines"] = True
                 params["fow"] = "gm"
+                params["dm"] = True
                 self.gm_view.set_img(self.game.curr_map().get_img(**params))
 
         # actually show the images created
@@ -97,3 +100,27 @@ class Viewer(object):
     # inverts the state if boolean
     def inv_prop(self, state):
         self.states[state] = not self.states[state]
+
+    def toggle_fullscreen(self):
+        if cv.getWindowProperty("main", cv.WND_PROP_FULLSCREEN) == cv.WINDOW_FULLSCREEN:
+            cv.setWindowProperty("main", cv.WND_PROP_FULLSCREEN, cv.WINDOW_NORMAL)
+        else:
+            cv.setWindowProperty("main", cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
+
+    def next_map(self):
+        self.states[PROP_MAP] += 1
+        self.game.next_map()
+        if self.states[PROP_MAP] >= len(self.game.maps):
+            print("last map already")
+            self.states[PROP_MAP] -= 1
+            return
+        self.update()
+
+    def prev_map(self):
+        self.states[PROP_MAP] -= 1
+        self.game.prev_map()
+        if self.states[PROP_MAP] < 0:
+            print("first map already")
+            self.states[PROP_MAP] += 1
+            return
+        self.update()
