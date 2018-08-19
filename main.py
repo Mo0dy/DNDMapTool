@@ -10,14 +10,14 @@ import time
 path = r"C:\Users\Felix\Google Drive\D&D\Stories"
 
 
-token_b = TokenBrowser()
+# token_b = TokenBrowser()
 game = load_game(path, "LostMineOfPhandelver")
 viewer = Viewer.Viewer(game)
 viewer.update()
 
 
 # for testing add a token to the first map
-game.maps[0].add_token(token_b.tokens[0], (5, 5))
+# game.maps[0].add_token(token_b.tokens[0], (5, 5))
 
 
 mx = 0
@@ -51,6 +51,8 @@ def mouse_callback(event, x, y, flags, param):
                 viewer.update()
             move_token = None
 
+# tracks ctrl key
+button_modifier = False
 cv.setMouseCallback("gm", mouse_callback)
 while True:
     k = cv.waitKey(1)
@@ -81,7 +83,32 @@ while True:
     elif k == ord("s"):  # show tokens
         viewer.inv_prop(Viewer.PROP_SHOW_TOKEN)
         viewer.update()
-
+    elif k == ord("e"):
+        viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 1.25)
+        viewer.update()
+    elif k == ord("q"):
+        viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 0.75)
+        viewer.update()
+    elif k == 56:  # up
+        viewer.decrease_prop(Viewer.PROP_TRANS_Y, 0.1)
+        viewer.update()
+    elif k == 54:  # right
+        viewer.increase_prop(Viewer.PROP_TRANS_X, 0.1)
+        viewer.update()
+    elif k == 50:  # down
+        viewer.increase_prop(Viewer.PROP_TRANS_Y, 0.1)
+        viewer.update()
+    elif k == 52:  # left
+        viewer.decrease_prop(Viewer.PROP_TRANS_X, 0.1)
+        viewer.update()
+    elif k == ord("u"):  # show complete map
+        game.curr_map().fog[:, :] = False
+        viewer.update()
+    elif k == ord("r"):
+        viewer.set_prop(Viewer.PROP_ZOOM, 1)
+        viewer.set_prop(Viewer.PROP_TRANS_Y, 0)
+        viewer.set_prop(Viewer.PROP_TRANS_X, 0)
+        viewer.update()
     # draw fog if pressed
     if "lmb" in pressed:
         game.curr_map().clear_fog(np.array((my, mx)), 60)

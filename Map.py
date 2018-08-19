@@ -52,20 +52,20 @@ class Map(object):
     def update_grid(self):
         self.play_grid = [[None] * self.nx for _ in range(self.ny)]
         # a boolean array where the gridlinepixels are True
-        self.grid = np.zeros(self.img.shape[:2]).astype(np.bool)
+        self.grid = np.zeros(self.dm_img.shape[:2]).astype(np.bool)
         for i in range(0, self.nx + 1):
             line_x = int(i * self.dx) + self.mxl
-            self.grid[self.myt:-self.myb - 1, max(0, line_x - 1): min(line_x + 1, self.img.shape[1] - 1)] = True
+            self.grid[self.myt:-self.myb - 1, max(0, line_x - 1): min(line_x + 1, self.dm_img.shape[1] - 1)] = True
         for j in range(0, self.ny + 1):
             line_y = int(j * self.dy) + self.myt
-            self.grid[max(0, line_y - 1): min(line_y + 1, self.img.shape[0] - 1), self.mxl:-self.mxr - 1] = True
+            self.grid[max(0, line_y - 1): min(line_y + 1, self.dm_img.shape[0] - 1), self.mxl:-self.mxr - 1] = True
 
     # update the image and all other important things
     def update_image(self, n_img=None):
         if np.any(n_img):
             self.img = n_img.copy()
             self.update_fow_map()
-            self.fog = np.ones(self.img.shape[:2]) * 255  # alpha values for adding the fow onto the map
+            self.fog = np.ones(self.dm_img.shape[:2]) * 255  # alpha values for adding the fow onto the map
             self.update_border()
         if np.any(self.img) and self.nx * self.ny:
             self.update_squares()
@@ -81,12 +81,12 @@ class Map(object):
     def update_border(self, b_thickness=3):
         # create the border
         # the border thickness
-        self.border = np.ones(self.img.shape[:2]).astype(np.bool)
+        self.border = np.ones(self.dm_img.shape[:2]).astype(np.bool)
         self.border[b_thickness:-b_thickness - 1, b_thickness:-b_thickness - 1] = False
 
     def update_fow_map(self):
         from DNDMapTool.RecourceManager import load_img
-        self.old_map = cv.resize(load_img("OldMap")[0], (self.img.shape[1], self.img.shape[0]))
+        self.old_map = cv.resize(load_img("OldMap")[0], (self.dm_img.shape[1], self.dm_img.shape[0]))
 
     def px_to_coor(self, x, y):
         # returns coor in j, i
@@ -111,10 +111,46 @@ class Map(object):
     # returns the mapimage (kwargs can modify the image: gridlines, grid_color, fow)
     def get_img(self, **kwargs):
         # if dm image is requested
+        zoomed_main = False
         if "dm" in kwargs and kwargs["dm"] and np.any(self.dm_img):
-            t_img= self.dm_img.copy()
+            t_img = self.dm_img.copy()
         else:
-            t_img = self.img.copy()
+            # zoom
+            if "trans_x" in kwargs:
+                offset_x = int(kwargs["trans_x"] * self.img.shape[1])
+            else:
+                offset_x = 0
+
+            if "trans_y" in kwargs:
+                offset_y = int(kwargs["trans_y"] * self.img.shape[0])
+            else:
+                offset_y = 0
+
+            if "zoom" in kwargs:
+                zoomed_main = True
+                zoom = kwargs["zoom"]
+                dx = self.img.shape[1] / zoom
+                dy = self.img.shape[0] / zoom
+                x_min = int((self.img.shape[1] - dx) / 2) + offset_x
+                x_max = int(x_min + dx)
+                y_min = int((self.img.shape[0] - dy) / 2) + offset_y
+                y_max = int(y_min + dy)
+
+                # clip
+                x_min = max(0, x_min)
+                x_min = min(self.img.shape[1], x_min)
+                x_max = min(self.img.shape[1], x_max)
+                x_max = max(x_max, 0)
+
+                y_min = max(0, y_min)
+                y_min = min(self.img.shape[0], y_min)
+                y_max = min(self.img.shape[0], y_max)
+                y_max = max(y_max, 0)
+
+                t_img = cv.resize(self.img[y_min:y_max, x_min:x_max], (self.dm_img.shape[1], self.dm_img.shape[0]))
+            else:
+                t_img = self.limit_size(self.img)
+        img_size = t_img.shape[:2]
         if "gridlines" in kwargs.keys() and kwargs["gridlines"]:
             # make sure there is a grid for this image
             if np.any(self.grid):
@@ -138,7 +174,15 @@ class Map(object):
         if "fow" in kwargs.keys():
             if kwargs["fow"].lower() == "tv":
                 # t_img = process.alpha_blend(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))#
-                process.alpha_blend_nb(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))
+                my_fog =  cv.GaussianBlur(self.fog, (101, 101), 0)
+                if zoomed_main:
+                    # transfrom fog to fit with the transformed img:
+                    x_min_fog = int(x_min / self.img.shape[0] * self.fog.shape[0])
+                    x_max_fog = int(x_max / self.img.shape[0] * self.fog.shape[0])
+                    y_min_fog = int(y_min / self.img.shape[0] * self.fog.shape[0])
+                    y_max_fog = int(y_max / self.img.shape[0] * self.fog.shape[0])
+                    my_fog = cv.resize(my_fog[y_min_fog:y_max_fog, x_min_fog:x_max_fog], (t_img.shape[1], t_img.shape[0]))
+                process.alpha_blend_nb(self.old_map, t_img, my_fog)
             elif kwargs["fow"].lower() == "gm":
                 # t_img[self.fog.astype(np.bool)] //= 2  # make the fow regions darker for gm
                 process.darken_maks(t_img, self.fog)
@@ -146,4 +190,43 @@ class Map(object):
             # add red border
             t_img[self.border, :2] = 0
             t_img[self.border, 2] = 255
+        if "dm" in kwargs and kwargs["dm"] and "zoom" in kwargs:
+            if "trans_x" in kwargs:
+                offset_x = int(kwargs["trans_x"] * self.dm_img.shape[1])
+            else:
+                offset_x = 0
+
+            if "trans_y" in kwargs:
+                offset_y = int(kwargs["trans_y"] * self.dm_img.shape[0])
+            else:
+                offset_y = 0
+
+            zoom = kwargs["zoom"]
+            dx = self.dm_img.shape[1] / zoom
+            dy = self.dm_img.shape[0] / zoom
+            x_min = int((self.dm_img.shape[1] - dx) / 2) + offset_x
+            x_max = int(x_min + dx)
+            y_min = int((self.dm_img.shape[0] - dy) / 2) + offset_y
+            y_max = int(y_min + dy)
+
+            # clip
+            x_min = max(0, x_min)
+            x_min = min(self.dm_img.shape[1], x_min)
+            x_max = min(self.dm_img.shape[1], x_max)
+            x_max = max(x_max, 0)
+
+            y_min = max(0, y_min)
+            y_min = min(self.dm_img.shape[0], y_min)
+            y_max = min(self.dm_img.shape[0], y_max)
+            y_max = max(y_max, 0)
+
+            cv.rectangle(t_img, (x_min, y_min), (x_max, y_max), (255, 255, 0), 2, cv.LINE_AA)
+
         return t_img
+
+    def limit_size(self, img):
+        fx = 1920 / img.shape[1]
+        fy = 1080 / img.shape[0]
+        # scale to the smaller factor
+        f = min(fx, fy)
+        return cv.resize(img, (0, 0), fx=f, fy=f)

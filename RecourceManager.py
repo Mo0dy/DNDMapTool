@@ -53,7 +53,7 @@ def load_map(path, name):
                 if v.isdigit():
                     v = int(v)
                 my_map.__dict__[k] = v
-    img, params = load_img(path + "\\" + "Player", autorotate=True, autoscale=True)
+    img, params = load_img(path + "\\" + "Player", autorotate=True, autoscale=False)
     dm_img, _ = load_img(path + "\\" + "DM", autorotate=True, autoscale=True)
     my_map.dm_img = dm_img
     # the image was rotated by 90 degrees

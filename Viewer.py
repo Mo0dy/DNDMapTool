@@ -12,6 +12,10 @@ PROP_PLAYERS = 3  # show players
 PROP_UPDATE_MAIN = 4  # should the main window be updated?
 PROP_GM_VIEW = 5  # the current state of the gm view
 PROP_SHOW_TOKEN = 6
+# first translated then zoomed to center
+PROP_ZOOM = 7  # the current zoom factor
+PROP_TRANS_X = 8  # the current translation factor in x direction. 0 is normal 1 is the full image
+PROP_TRANS_Y = 9  # the current translation factor in y direction
 
 
 # the settings for the properties
@@ -52,6 +56,9 @@ class Viewer(object):
             PROP_UPDATE_MAIN: True,
             PROP_GM_VIEW: STATE_NORMAL,
             PROP_SHOW_TOKEN: True,
+            PROP_ZOOM: 1,
+            PROP_TRANS_X: 0,
+            PROP_TRANS_Y: 0,
         }
 
         self.main_view = View()
@@ -67,7 +74,14 @@ class Viewer(object):
                 self.main_view.set_img(self.game.overview_map)
             self.gm_view.set_img(self.game.overview_map_dm)
         elif self.states[PROP_VIEW] == STATE_MAPVIEW:
+            # calculate zoom and translation parameters for the main_view
             params = {"fow": "tv"}  # the parameters that will be asked for in the image
+            if self.states[PROP_ZOOM] != 1:
+                params["zoom"] = self.states[PROP_ZOOM]
+            if self.states[PROP_TRANS_X]:
+                params["trans_x"] = self.states[PROP_TRANS_X]
+            if self.states[PROP_TRANS_Y]:
+                params["trans_y"] = self.states[PROP_TRANS_Y]
 
             if self.states[PROP_SHOW_TOKEN]:
                 params["tokens"] = True
@@ -106,6 +120,12 @@ class Viewer(object):
     # inverts the state if boolean
     def inv_prop(self, state):
         self.states[state] = not self.states[state]
+
+    def increase_prop(self, state, amount):
+        self.states[state] += amount
+
+    def decrease_prop(self, state, amount):
+        self.states[state] -= amount
 
     def toggle_fullscreen(self):
         if cv.getWindowProperty("main", cv.WND_PROP_FULLSCREEN) == cv.WINDOW_FULLSCREEN:
