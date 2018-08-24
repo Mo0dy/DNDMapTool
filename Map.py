@@ -29,25 +29,25 @@ class Map(object):
         self.update_image(img)
 
         self.tokens = {}  # the player grid and the tokens hold the same information. here every token is associated with a position
-        self.play_grid = None  # the actual grid that gets played in. each cell can hold one piece
 
     # add token to both the tokens dict and the play grid
     def add_token(self, token, pos):
         self.tokens[token] = pos
-        self.play_grid[pos[0]][pos[1]] = token
 
     # remove token from both the tokens dict and the play grid
     def remove_token(self, token):
-        self.play_grid[self.tokens[token][0]][self.tokens[token][1]] = None
         del self.tokens[token]
 
-    def token_at(self, gridpos):  #returns token at y and x pos
-        return self.play_grid[gridpos[0]][gridpos[1]]
+    def token_at(self, px, py):  #returns token at y and x pos
+        for t, pos in self.tokens.items():
+            if pos[1] - t.sx / 2 < px < pos[1] + t.sx / 2 and pos[0] - t.sy / 2 < py < pos[0] + t.sy / 2:
+                return t
 
     def move_token(self, token, n_pos):
-        self.play_grid[self.tokens[token][0]][self.tokens[token][1]] = None
         self.tokens[token] = n_pos
-        self.play_grid[self.tokens[token][0]][self.tokens[token][1]] = token
+
+    def token_pos(self, token):
+        return self.tokens[token]
 
     def update_grid(self):
         self.play_grid = [[None] * self.nx for _ in range(self.ny)]
@@ -111,10 +111,27 @@ class Map(object):
     # returns the mapimage (kwargs can modify the image: gridlines, grid_color, fow)
     def get_img(self, **kwargs):
         # if dm image is requested
-        zoomed_main = False
+
+        # scale factor
+        sfx = 1
+        sfy = 1
+
         if "dm" in kwargs and kwargs["dm"] and np.any(self.dm_img):
             t_img = self.dm_img.copy()
         else:
+            t_img = self.img.copy()
+            sfx = t_img.shape[1] / self.dm_img.shape[1]
+            sfy = t_img.shape[0] / self.dm_img.shape[0]
+
+        # blit tokens:
+        if "tokens" in kwargs.keys() and kwargs["tokens"]:
+            # display tokens
+            for t, pos in self.tokens.items():
+                # use dx and dy if gridlines are allowed
+                t.blit(t_img, (int(pos[0] * sfy), int(pos[1] * sfx)), int(t.sx * sfx), int(t.sy * sfy))
+
+        zoomed_main = False
+        if not ("dm" in kwargs and kwargs["dm"] and np.any(self.dm_img)):
             # zoom
             if "trans_x" in kwargs:
                 offset_x = int(kwargs["trans_x"] * self.img.shape[1])
@@ -147,9 +164,9 @@ class Map(object):
                 y_max = min(self.img.shape[0], y_max)
                 y_max = max(y_max, 0)
 
-                t_img = cv.resize(self.img[y_min:y_max, x_min:x_max], (self.dm_img.shape[1], self.dm_img.shape[0]))
+                t_img = cv.resize(t_img[y_min:y_max, x_min:x_max], (self.dm_img.shape[1], self.dm_img.shape[0]))
             else:
-                t_img = self.limit_size(self.img)
+                t_img = self.limit_size(t_img)
         img_size = t_img.shape[:2]
         if "gridlines" in kwargs.keys() and kwargs["gridlines"]:
             # make sure there is a grid for this image
@@ -159,18 +176,6 @@ class Map(object):
                 else:
                     color = (50, 50, 50)  # standard gray color
                 t_img[self.grid] = color  # self.grid holds a boolean array in which the gridlines are predrawn
-        if "tokens" in kwargs.keys() and kwargs["tokens"]:
-            # display tokens
-            for t, grid_pos in self.tokens.items():
-                pos = self.coor_to_px_mid(grid_pos)  # this also needs to be transformed
-                # use dx and dy if gridlines are allowed
-                if self.dx and self.dy:
-                    dx = self.dx
-                    dy = self.dy
-                else:
-                    dx = 100
-                    dy = 100
-                t.blit(t_img, pos, dx, dy)
         if "fow" in kwargs.keys():
             if kwargs["fow"].lower() == "tv":
                 # t_img = process.alpha_blend(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))#
