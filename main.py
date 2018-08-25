@@ -10,7 +10,8 @@ import time
 path = r"C:\Users\Felix\Google Drive\D&D\Stories"
 
 
-game = load_game(path, "LostMineOfPhandelver")
+# game = load_game(path, "LostMineOfPhandelver")
+game = load_game(path, "JungleOneShot")
 token_b = TokenBrowser(game)
 # game.maps[0].add_token(token_b.tokens[0], [200, 200])
 viewer = Viewer.Viewer(game)

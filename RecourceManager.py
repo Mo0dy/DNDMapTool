@@ -20,9 +20,14 @@ def load_img(path, **kwargs):
     else:
         filetype = ".jpg"
     if "load_alpha" in kwargs and kwargs["load_alpha"]:
-        img = np.array(cv.imread(path + filetype, cv.IMREAD_UNCHANGED)).astype(np.uint8)
+        load_img = cv.imread(path + filetype, cv.IMREAD_UNCHANGED)
     else:
-        img = np.array(cv.imread(path + filetype)).astype(np.uint8)
+        load_img = cv.imread(path + filetype)
+    if np.any(load_img):
+        img = np.array(load_img).astype(np.uint8)
+    else:
+        print("could not load: " + path)
+        return None, None
     # rotate the image so that the largest dimension is x (columns)
     if "autorotate" in kwargs and kwargs["autorotate"]:
         # rotate if y dim is greater then x dim
@@ -55,6 +60,13 @@ def load_map(path, name):
                 my_map.__dict__[k] = v
     img, params = load_img(path + "\\" + "Player", autorotate=True, autoscale=False)
     dm_img, _ = load_img(path + "\\" + "DM", autorotate=True, autoscale=True)
+    if not np.any(dm_img):
+        fx = 1920 / img.shape[1]
+        fy = 1080 / img.shape[0]
+        # scale to the smaller factor
+        f = min(fx, fy)
+        dm_img = cv.resize(img, (0, 0), fx=f, fy=f)
+
     my_map.dm_img = dm_img
     # the image was rotated by 90 degrees
     if params["rotate"]:
