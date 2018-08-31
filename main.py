@@ -60,6 +60,10 @@ def mouse_callback(event, x, y, flags, param):
                 viewer.update()
             move_token = None
 
+# additional images that will be blitted onto the view window:
+# image, pos(x, y)
+add_images = []
+
 # tracks ctrl key
 button_modifier = False
 cv.setMouseCallback("gm", mouse_callback)
@@ -130,6 +134,11 @@ while True:
     elif k == ord("y"):
         viewer.inv_prop(Viewer.PROP_SHOW_TOKEN)
         viewer.update()
+    elif k == ord("i"):
+        token = game.curr_map().token_at(mx, my)
+        info = token.info_window()
+        # draw information window():
+        add_images.append((info, (mx, my)))
 
     # draw fog if pressed
     if "lmb" in pressed:
@@ -140,10 +149,15 @@ while True:
         viewer.update()
 
     # add arrow:
-    if move_token:
+    if move_token or len(add_images):
         n_img = viewer.gm_view.img.copy()
-        t_pos = game.curr_map().token_pos(move_token)
-        cv.arrowedLine(viewer.gm_view.img, (t_pos[1], t_pos[0]), (mx, my), (255, 0, 0), 3)
+
+        for img, pos in add_images:
+            n_img[pos[1]:pos[1] + img.shape[0], pos[0]:pos[0] + img.shape[0], :] = img
+
+        if move_token:
+            t_pos = game.curr_map().token_pos(move_token)
+            cv.arrowedLine(viewer.gm_view.img, (t_pos[1], t_pos[0]), (mx, my), (255, 0, 0), 3)
         viewer.gm_view.show("gm")
         viewer.gm_view.set_img(n_img)
 

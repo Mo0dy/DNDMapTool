@@ -54,3 +54,12 @@ class Token(object):
     def zoom(self, zoom_fac):
         self.sx = int(self.sx * zoom_fac)
         self.sy = int(self.sy * zoom_fac)
+
+    # returns an image with all the information about the entity
+    def info_window(self):
+        img = np.ones((50, 50, 3)).astype(np.uint8) * 100
+        row = 10
+        for type, d in self.descriptors.items():
+            cv.addText(img, type + ": " + d, (row, 10), "ArialBlack", 5)
+            row += 50
+        return img
