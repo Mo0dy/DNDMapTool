@@ -60,6 +60,7 @@ class Token(object):
         img = np.ones((50, 50, 3)).astype(np.uint8) * 100
         row = 10
         for type, d in self.descriptors.items():
-            cv.addText(img, type + ": " + d, (row, 10), "ArialBlack", 5)
+            # cv.addText(img, type + ": " + d, (row, 10), cv.FONT_HERSHEY_SIMPLEX, 5)
+            cv.addText(img, "test", (row, 10), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             row += 50
         return img
