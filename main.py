@@ -10,8 +10,8 @@ import time
 path = r"C:\Users\Felix\Google Drive\D&D\Stories"
 
 
-# game = load_game(path, "LostMineOfPhandelver")
-game = load_game(path, "JungleOneShot")
+game = load_game(path, "LostMineOfPhandelver")
+# game = load_game(path, "JungleOneShot")
 token_b = TokenBrowser(game)
 # game.maps[0].add_token(token_b.tokens[0], [200, 200])
 viewer = Viewer.Viewer(game)
@@ -111,16 +111,16 @@ while True:
             viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 0.75)
         viewer.update()
     elif k == 56:  # up
-        viewer.decrease_prop(Viewer.PROP_TRANS_Y, 0.1)
+        viewer.decrease_prop(Viewer.PROP_TRANS_Y, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
         viewer.update()
     elif k == 54:  # right
-        viewer.increase_prop(Viewer.PROP_TRANS_X, 0.1)
+        viewer.increase_prop(Viewer.PROP_TRANS_X, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
         viewer.update()
     elif k == 50:  # down
-        viewer.increase_prop(Viewer.PROP_TRANS_Y, 0.1)
+        viewer.increase_prop(Viewer.PROP_TRANS_Y, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
         viewer.update()
     elif k == 52:  # left
-        viewer.decrease_prop(Viewer.PROP_TRANS_X, 0.1)
+        viewer.decrease_prop(Viewer.PROP_TRANS_X, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
         viewer.update()
     elif k == ord("u"):  # show complete map
         game.curr_map().fog[:, :] = False
