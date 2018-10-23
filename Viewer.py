@@ -150,3 +150,19 @@ class Viewer(object):
             self.states[PROP_MAP] += 1
             return
         self.update()
+
+    def trans_gm_main(self, x, y):
+        dmshape = self.gm_view.img.shape
+        mainshape = self.main_view.img.shape
+        s = self.states[PROP_ZOOM]
+        tx = self.states[PROP_TRANS_X]
+        ty = self.states[PROP_TRANS_Y]
+        ox = dmshape[1]
+        oy = dmshape[0]
+        nx = mainshape[1]
+        ny = mainshape[0]
+
+        new_x = (x / s + tx * ox) / (ox / s) * nx
+        new_y = (y / s + ty * oy) / (oy / s) * ny
+
+        return new_x, new_y

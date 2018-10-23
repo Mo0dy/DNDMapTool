@@ -5,6 +5,7 @@ from DNDMapTool.Game import Game
 from DNDMapTool.RecourceManager import load_game
 from DNDMapTool import Viewer
 from DNDMapTool.TokenBrowser import TokenBrowser, token_win_name
+from DNDMapTool.Ping import Ping
 import time
 
 path = r"C:\Users\Felix\Google Drive\D&D\Stories"
@@ -63,11 +64,15 @@ def mouse_callback(event, x, y, flags, param):
 # additional images that will be blitted onto the view window:
 # image, pos(x, y)
 add_images = []
+pings = []
 
 # tracks ctrl key
 button_modifier = False
 cv.setMouseCallback("gm", mouse_callback)
+last_time = 0
 while True:
+    dt = time.time() - last_time
+    last_time = time.time()
     k = cv.waitKey(1)
     if k == 27:
         break
@@ -139,6 +144,13 @@ while True:
         info = token.info_window()
         # draw information window():
         add_images.append((info, (mx, my)))
+    elif k == ord("n"):
+        px, py = viewer.trans_gm_main(mx, my)
+        pings.append(Ping(px, py))
+    elif k == ord("h"):
+        token = game.curr_map().token_at(mx, my)
+        if token != None:
+            game.curr_map().remove_token(token)
 
     # draw fog if pressed
     if "lmb" in pressed:
@@ -160,6 +172,18 @@ while True:
             cv.arrowedLine(viewer.gm_view.img, (t_pos[1], t_pos[0]), (mx, my), (255, 0, 0), 3)
         viewer.gm_view.show("gm")
         viewer.gm_view.set_img(n_img)
+
+    if len(pings):
+        n_img = viewer.main_view.img.copy()
+        # update pings
+        for ping in pings:
+            if ping.iter(dt):
+                ping.blit(viewer.main_view.img)
+            else:
+                del ping
+        viewer.main_view.show("main")
+        viewer.main_view.set_img(n_img)
+
 
 cv.destroyAllWindows()
 
