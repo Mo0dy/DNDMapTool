@@ -51,7 +51,7 @@ class Viewer(object):
         self.states = {
             PROP_VIEW: STATE_MAPVIEW,
             PROP_MAP: 0,
-            PROP_GRIDLINES: True,
+            PROP_GRIDLINES: False,
             PROP_PLAYERS: True,
             PROP_UPDATE_MAIN: True,
             PROP_GM_VIEW: STATE_NORMAL,

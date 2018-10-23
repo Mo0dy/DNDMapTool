@@ -81,6 +81,7 @@ def load_map(path, name):
         my_map.myt = int(my_map.myt * f)
         my_map.myb = int(my_map.myb * f)
     my_map.update_image(img)
+    print("loaded map: ", name)
     return my_map
 
 
@@ -96,7 +97,7 @@ def load_game(path, name):
                 matches = re.findall("^[0-9]+", folder)
                 if len(matches):
                     game.maps.append(load_map(x[0] + "\\" + folder, re.sub("^[0-9]+_*", "", folder)))
-    print(len(game.maps))
+    print("loaded game. amount of maps:", len(game.maps))
     return game
 
 
@@ -115,6 +116,7 @@ def load_tokens(path):
             img = load_img(path + "\\" + name, filetype=".png", load_alpha=True)[0]  #removes file ending and loads image
             token = Token(img[:, :, :3], img[:, :, 3], descriptors)
             tokens.append(token)
+    print("loaded", len(tokens), "tokens")
     return tokens
 
 
