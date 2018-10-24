@@ -16,6 +16,7 @@ PROP_SHOW_TOKEN = 6
 PROP_ZOOM = 7  # the current zoom factor
 PROP_TRANS_X = 8  # the current translation factor in x direction. 0 is normal 1 is the full image
 PROP_TRANS_Y = 9  # the current translation factor in y direction
+PROP_SHOW_MENU = 10
 
 
 # the settings for the properties
@@ -102,6 +103,7 @@ class Viewer(object):
                 params["dm"] = True
                 params["tokens"] = True
                 self.gm_view.set_img(self.game.curr_map().get_img(**params))
+
         # actually show the images created
         self.gm_view.show("gm")
         self.main_view.show("main")
