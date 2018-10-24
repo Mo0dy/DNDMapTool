@@ -19,11 +19,131 @@ viewer = Viewer.Viewer(game)
 viewer.update()
 
 
+# additional images that will be blitted onto the view window:
+# tuples: (image, pos(x, y))
+add_images = []
+pings = []  # the pings that are currently being displayed
+
 # for testing add a token to the first map
 # game.maps[0].add_token(token_b.tokens[0], (5, 5))
 
 
-# the mouse callback for the token manager
+# utility functions ==================================================================================================
+# defines a bunch of functions and then maps them to keys
+def toggle_overview_map():
+    if viewer.get_prop(Viewer.PROP_VIEW) == Viewer.STATE_OVERVIEW:
+        viewer.set_prop(Viewer.PROP_VIEW, Viewer.STATE_MAPVIEW)
+    else:
+        viewer.set_prop(Viewer.PROP_VIEW, Viewer.STATE_OVERVIEW)
+
+
+def toggle_gridlines():
+    viewer.inv_prop(Viewer.PROP_GRIDLINES)
+
+
+def toggle_pause():
+    viewer.inv_prop(Viewer.PROP_UPDATE_MAIN)
+    viewer.update()
+
+
+def toggle_preview():
+    if viewer.get_prop(Viewer.PROP_GM_VIEW) == Viewer.STATE_PREVIEW:
+        viewer.set_prop(Viewer.PROP_GM_VIEW, Viewer.STATE_NORMAL)
+    else:
+        viewer.set_prop(Viewer.PROP_GM_VIEW, Viewer.STATE_PREVIEW)
+
+
+def toggle_fullscreen():
+    viewer.toggle_fullscreen()
+
+
+def next_map():
+    viewer.next_map()
+
+
+def prev_map():
+    viewer.prev_map()
+
+
+def toggle_show_tokens():
+    viewer.inv_prop(Viewer.PROP_SHOW_TOKEN)
+    viewer.update()
+
+
+def zoom_in():  # zoom token if token is under mouse. else zoom image
+    token = token_under_mouse()
+    if token:
+        token.zoom(1.25)
+    else:
+        viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 1.25)
+    viewer.update()
+
+
+def zoom_out():
+    token = token_under_mouse()  # zoom token if token is under mouse. else zoom image
+    if token:
+        token.zoom(0.75)
+    else:
+        viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 0.75)
+
+
+def trans_up():
+    viewer.decrease_prop(Viewer.PROP_TRANS_Y, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
+    viewer.update()
+
+
+def trans_down():
+    viewer.increase_prop(Viewer.PROP_TRANS_Y, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
+    viewer.update()
+
+
+def trans_right():
+    viewer.increase_prop(Viewer.PROP_TRANS_X, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
+    viewer.update()
+
+
+def trans_left():
+    viewer.decrease_prop(Viewer.PROP_TRANS_X, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
+    viewer.update()
+
+
+def clear_fog():
+    game.curr_map().fog[:, :] = False
+    viewer.update()
+
+
+def add_fog():
+    game.curr_map().fog[:, :] = True
+    viewer.update()
+
+
+def remove_token_or_reset():
+    # check if token under mouse
+    token = token_under_mouse()
+    if token:
+        game.curr_map().remove_token(token)
+    else:
+        viewer.set_prop(Viewer.PROP_ZOOM, 1)
+        viewer.set_prop(Viewer.PROP_TRANS_Y, 0)
+        viewer.set_prop(Viewer.PROP_TRANS_X, 0)
+
+
+def show_info_window():
+    token = game.curr_map().token_at(mx, my)
+    if token:
+        info = token.info_window()
+        # draw information window():
+        add_images.append((info, (mx, my)))
+
+
+def ping():
+    px, py = viewer.trans_gm_main(mx, my)
+    pings.append(Ping(px, py))
+
+# event functions =============================================================================================
+
+
+#  the mouse callback for the token manager
 def token_mouse_callback(event, x, y, flags, param):
     # call the mouse callback of the token manager returns true if changes are detected
     if token_b.mouse_callback(event, x, y, flags, param):
@@ -78,11 +198,6 @@ def mouse_callback(event, x, y, flags, param):
 # add the mouse callback function
 cv.setMouseCallback("gm", mouse_callback)
 
-# additional images that will be blitted onto the view window:
-# tuples: (image, pos(x, y))
-add_images = []
-pings = []  # the pings that are currently being displayed
-
 # tracks ctrl key
 button_modifier = False
 last_time = 0  # time for dt calculation
@@ -99,98 +214,7 @@ def handle_key(k):
     #     else:
     #         f1()
 
-    # defines a bunch of functions and then maps them to keys
-    def toggle_overview_map():
-        if viewer.get_prop(Viewer.PROP_VIEW) == Viewer.STATE_OVERVIEW:
-            viewer.set_prop(Viewer.PROP_VIEW, Viewer.STATE_MAPVIEW)
-        else:
-            viewer.set_prop(Viewer.PROP_VIEW, Viewer.STATE_OVERVIEW)
 
-    def toggle_gridlines():
-        viewer.inv_prop(Viewer.PROP_GRIDLINES)
-
-    def toggle_pause():
-        viewer.inv_prop(Viewer.PROP_UPDATE_MAIN)
-        viewer.update()
-
-    def toggle_preview():
-        if viewer.get_prop(Viewer.PROP_GM_VIEW) == Viewer.STATE_PREVIEW:
-            viewer.set_prop(Viewer.PROP_GM_VIEW, Viewer.STATE_NORMAL)
-        else:
-            viewer.set_prop(Viewer.PROP_GM_VIEW, Viewer.STATE_PREVIEW)
-
-    def toggle_fullscreen():
-        viewer.toggle_fullscreen()
-
-    def next_map():
-        viewer.next_map()
-
-    def prev_map():
-        viewer.prev_map()
-
-    def toggle_show_tokens():
-        viewer.inv_prop(Viewer.PROP_SHOW_TOKEN)
-        viewer.update()
-
-    def zoom_in():  # zoom token if token is under mouse. else zoom image
-        token = token_under_mouse()
-        if token:
-            token.zoom(1.25)
-        else:
-            viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 1.25)
-        viewer.update()
-
-    def zoom_out():
-        token = token_under_mouse()  # zoom token if token is under mouse. else zoom image
-        if token:
-            token.zoom(0.75)
-        else:
-            viewer.set_prop(Viewer.PROP_ZOOM, viewer.get_prop(Viewer.PROP_ZOOM) * 0.75)
-
-    def trans_up():
-        viewer.decrease_prop(Viewer.PROP_TRANS_Y, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
-        viewer.update()
-
-    def trans_down():
-        viewer.increase_prop(Viewer.PROP_TRANS_Y, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
-        viewer.update()
-
-    def trans_right():
-        viewer.increase_prop(Viewer.PROP_TRANS_X, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
-        viewer.update()
-
-    def trans_left():
-        viewer.decrease_prop(Viewer.PROP_TRANS_X, 0.1 / viewer.get_prop(Viewer.PROP_ZOOM))
-        viewer.update()
-
-    def clear_fog():
-        game.curr_map().fog[:, :] = False
-        viewer.update()
-
-    def add_fog():
-        game.curr_map().fog[:, :] = True
-        viewer.update()
-
-    def remove_token_or_reset():
-        # check if token under mouse
-        token = token_under_mouse()
-        if token:
-            game.curr_map().remove_token(token)
-        else:
-            viewer.set_prop(Viewer.PROP_ZOOM, 1)
-            viewer.set_prop(Viewer.PROP_TRANS_Y, 0)
-            viewer.set_prop(Viewer.PROP_TRANS_X, 0)
-
-    def show_info_window():
-        token = game.curr_map().token_at(mx, my)
-        if token:
-            info = token.info_window()
-            # draw information window():
-            add_images.append((info, (mx, my)))
-
-    def ping():
-        px, py = viewer.trans_gm_main(mx, my)
-        pings.append(Ping(px, py))
 
 
     # this dictionary maps the keys to the correct functions
