@@ -3,6 +3,9 @@ import numpy as np
 import numba as nb
 import time
 
+"""Image processiong functions. Some are updated and useful others are not. use with care"""
+
+#
 
 dirs = [np.array((1, 0)), np.array((0, 1)), np.array((-1, 0)), np.array((0, -1)), np.array((-1, -1)), np.array((1, 1)), np.array((1, -1)), np.array((-1, 1))]
 # this will get a numpy array and return all connected color cells

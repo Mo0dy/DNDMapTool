@@ -5,18 +5,39 @@ import time
 
 
 class Map(object):
+    """The map object stores all game information that is confined to a certain map.
+
+    This includes map settings such as fog and the grid.
+    This also includes all tokens etc."""
+
     def __init__(self, name="default", img=None, nx=0, ny=0, mxl=0, mxr=0, myt=0, myb=0):
+        """
+        :param name: The name of the map.
+        :param img: The actual graphical map.
+        :param nx: The amount of cells in x direction.
+        :param ny: The amount of cells in y direction.
+        :param mxl: The margin on the left.
+        :param mxr: The margin on the right.
+        :param myt: The margin on the top.
+        :param myb: The margin on the bottom
+        """
         self.name = name
-        self.dm_img = None
-        self.img = None
-        self.grid = None  # the grid that is played in as a boolean image mask
+        self.dm_img = None  # a seperate image that is shown for the dm instead of the normal map
+        self.img = None  # the image of the map. this will be assigned with the update_image function
         self.fog = None  # the alpha values for fow
-        self.old_map = None  # the old map is used as a fow
+        # the old map image is used as a fow. the fow image can be changed from map to map and needs to be the same
+        # size as the actual map
+        self.old_map = None
         self.border = None  # this border can be used to i.e. add a red border for "unpaused"
-        # the amount of cells
+
+        # grid settings =====================================
+        # the grid is currently not in use but can be used to confine tokens to cells / measure distances reliably etc.
+        # later on I want to add range finders that might use this (or direct pixel) as basis
+        self.grid = None  # the grid that is used in as a boolean image mask (actual visual interpretation of the grid)
         self.nx = nx
         self.ny = ny
 
+        # the size of the gridcells
         self.dx = None
         self.dy = None
 
@@ -26,30 +47,39 @@ class Map(object):
         self.myt = myt
         self.myb = myb
 
+        # do a lot of stuff that is needed to prepare a lot of the variables connected to the image and visual side
         self.update_image(img)
 
-        self.tokens = {}  # the player grid and the tokens hold the same information. here every token is associated with a position
+        # holds all tokens (key = token, value = position)
+        # if the tokens are confined to a grid they should also be saved there to make interactions more direct
+        self.tokens = {}
 
-    # add token to both the tokens dict and the play grid
     def add_token(self, token, pos):
+        """add token to both the tokens dict and the play grid"""
         self.tokens[token] = pos
 
-    # remove token from both the tokens dict and the play grid
     def remove_token(self, token):
+        """remove token from the token dictionary"""
         del self.tokens[token]
 
-    def token_at(self, px, py):  #returns token at y and x pos
+    def token_at(self, px, py):
+        """returns token at y and x pos (a token has a size as long as px, py is in it it will be returned)"""
         for t, pos in self.tokens.items():
+            # rectangular collision check
             if pos[1] - t.sx / 2 < px < pos[1] + t.sx / 2 and pos[0] - t.sy / 2 < py < pos[0] + t.sy / 2:
                 return t
 
     def move_token(self, token, n_pos):
+        """change the position of a token"""
         self.tokens[token] = n_pos
 
     def token_pos(self, token):
+        """get the position of a token"""
         return self.tokens[token]
 
+    # some of the update functions. (calculate visuals from parameters / the self.img varaible)
     def update_grid(self):
+        """creates the grid mask"""
         self.play_grid = [[None] * self.nx for _ in range(self.ny)]
         # a boolean array where the gridlinepixels are True
         self.grid = np.zeros(self.dm_img.shape[:2]).astype(np.bool)
@@ -62,15 +92,17 @@ class Map(object):
 
     # update the image and all other important things
     def update_image(self, n_img=None):
+        """assign values to the img, fow, border and if viable the grid"""
         if np.any(n_img):
             self.img = n_img.copy()
             self.update_fow_map()
             self.fog = np.ones(self.dm_img.shape[:2]) * 255  # alpha values for adding the fow onto the map
             self.update_border()
-        if np.any(self.img) and self.nx * self.ny:
+        if np.any(self.img) and self.nx * self.ny:  # if there is an image and viable grid settings (e.g. nx > 0 and ny > 0)
             self.update_squares()
 
     def update_squares(self):
+        """calculate dx, dy and create the grid"""
         # tilesize
         if self.nx:
             self.dx = (self.img.shape[1] - self.mxl - self.mxr) / self.nx
@@ -79,23 +111,24 @@ class Map(object):
         self.update_grid()
 
     def update_border(self, b_thickness=3):
-        # create the border
-        # the border thickness
-        self.border = np.ones(self.dm_img.shape[:2]).astype(np.bool)
-        self.border[b_thickness:-b_thickness - 1, b_thickness:-b_thickness - 1] = False
+        """create the border"""
+        self.border = np.ones(self.dm_img.shape[:2]).astype(np.bool)  # create a boolean array
+        self.border[b_thickness:-b_thickness - 1, b_thickness:-b_thickness - 1] = False  # exclude the center region
 
     def update_fow_map(self):
+        """load and resize the "oldmap" image"""
         from DNDMapTool.RecourceManager import load_img
         self.old_map = cv.resize(load_img("OldMap")[0], (self.dm_img.shape[1], self.dm_img.shape[0]))
 
     def px_to_coor(self, x, y):
-        # returns coor in j, i
+        """returns the grid coordinates of the current pixel input"""
         if self.dx and self.dy:
             return [int((y - self.myt) // self.dy), int((x - self.mxl) // self.dx)]
         else:
             return int(x), int(y)
 
     def coor_to_px_mid(self, coor):
+        """returns the midpoint of the input grid coordinates"""
         j, i = coor
         if self.dx and self.dy:
             return int((j + 0.5) * self.dy) + self.myt, int((i + 0.5) * self.dx) + self.mxl
@@ -103,15 +136,21 @@ class Map(object):
             return coor
 
     def clear_fog(self, coor, rad):
+        """clear the fog in a certain radius around px coordinates"""
         cv.circle(self.fog, (coor[1], coor[0]), rad, 0, -1)
 
     def add_fog(self, coor, rad):
+        """add fog in a certain radius around px coordinates"""
         cv.circle(self.fog, (coor[1], coor[0]), rad, 255, -1)
 
-    # returns the mapimage (kwargs can modify the image: gridlines, grid_color, fow)
     def get_img(self, **kwargs):
-        # if dm image is requested
+        """returns the mapimage (kwargs can modify the image: gridlines, grid_color, fow).
 
+        This is the main rendering function that gets invoked by the viewer"""
+
+        # now follows a bunch of random code that probably should be cleaned up a bit
+        # especially the translation / zoom functionality should also allow for affine translations of single points
+        # from the dm window (normal full image) to the zoomed version in a natural way (for pings etc)
         # scale factor
         sfx = 1
         sfy = 1
@@ -230,6 +269,7 @@ class Map(object):
         return t_img
 
     def limit_size(self, img):
+        """limit the size of an image to 1920x1080"""
         fx = 1920 / img.shape[1]
         fy = 1080 / img.shape[0]
         # scale to the smaller factor

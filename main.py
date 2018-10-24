@@ -9,25 +9,26 @@ from DNDMapTool.Ping import Ping
 import time
 from DNDMapTool.Menu import Menu, Button
 
-path = r"C:\Users\Felix\Google Drive\D&D\Stories"
+"""The entrypoint for the program"""
 
-
+path = r"C:\Users\Felix\Google Drive\D&D\Stories"  # the path of the gamefiles that will be read
+# load the maps and add. information of this game. In the future this
+# could be input or done via a file manager
 game = load_game(path, "LostMineOfPhandelver")
-# game = load_game(path, "JungleOneShot")
-token_b = TokenBrowser(game)
-# game.maps[0].add_token(token_b.tokens[0], [200, 200])
-viewer = Viewer.Viewer(game)
+token_b = TokenBrowser(game)  # create a new token browser. this also loads all available tokens
+viewer = Viewer.Viewer(game)  # create a new viewer. the viewer will render the map images according to properties
+# updating the viewer shows the images (the show routine should probably be separate or the post
+# processing should be added to the viewer
 viewer.update()
 
 
-# additional images that will be blitted onto the view window:
+# additional images that will be blitted onto the view window (post processing):
 # tuples: (image, pos(x, y))
 add_images = []
 pings = []  # the pings that are currently being displayed
 
-# for testing add a token to the first map
-# game.maps[0].add_token(token_b.tokens[0], (5, 5))
-
+# the brushsize for the drawing of the fog
+brushsize = 60
 
 # utility functions ==================================================================================================
 # defines a bunch of functions and then maps them to keys
@@ -141,10 +142,29 @@ def ping():
     px, py = viewer.trans_gm_main(mx, my)
     pings.append(Ping(px, py))
 
+
+def fine_brush():
+    global brushsize
+    brushsize = 20
+
+
+def normal_brush():
+    global brushsize
+    brushsize = 60
+
+
+def coarse_brush():
+    global brushsize
+    brushsize = 200
+
+
 # build menu ==================================================================================================
-menu = Menu()
+menu = Menu()  # create a new menu
 
 
+# create the functions for every submenu
+# they have to populate the menu.menu dictionary with buttons and functions and assign positions to the buttons
+# menu.update() automatically assignes positions to buttons
 def main_menu():
     menu.menu = {
         Button("edit"): edit_menu,
@@ -160,7 +180,19 @@ def edit_menu():
         Button("Prev Map"): prev_map,
         Button("Add Fog"): add_fog,
         Button("Clear Fog"): clear_fog,
+        Button("Brushsize"): brush_menu,
         Button("return"): main_menu,
+    }
+    menu.update()
+
+
+def brush_menu():
+    """select brushsize"""
+    menu.menu = {
+        Button("Fine"): fine_brush,
+        Button("Normal"): normal_brush,
+        Button("Coarse"): coarse_brush,
+        Button("Return"): edit_menu,
     }
     menu.update()
 
@@ -171,13 +203,13 @@ def view_menu():
         Button("Pause"): toggle_pause,
         Button("Show Tokens"): toggle_show_tokens,
         Button("Translations"): translation_menu,
+        Button("Preview"): toggle_preview,
         Button("Return"): main_menu,
     }
     menu.update()
 
 
 def translation_menu():
-
     # first create the buttons
     bup = Button("Up")
     bdown = Button("Down")
@@ -232,16 +264,18 @@ def settings_menu():
     }
     menu.update()
 
+
+# start the first menu
 main_menu()
 
+
 # event functions =============================================================================================
-
-
-#  the mouse callback for the token manager
 def token_mouse_callback(event, x, y, flags, param):
+    """the mouse callback for the token manager"""
     # call the mouse callback of the token manager returns true if changes are detected
     if token_b.mouse_callback(event, x, y, flags, param):
         viewer.update()  # update the viewer if changes have been made
+
 
 # set mouse callback
 cv.setMouseCallback(token_win_name, token_mouse_callback)
@@ -255,21 +289,23 @@ pressed = set()
 move_token = None  # True if a token is currently being dragged
 
 
-# returns the token under the current mouse position
 def token_under_mouse():
+    """returns the token under the current mouse position or None if there isn't any"""
     return game.curr_map().token_at(mx, my)
 
 
-# the mouse callback function of the dm window
 def mouse_callback(event, x, y, flags, param):
-    global selected_field, mx, my, connected_reg, mw_pressed, move_token
+    """the mouse callback function of the dm window"""
+    global mx, my, move_token
 
     # store mouse position in global variables for other functions to access
     mx = x
     my = y
+
+    # event holds the current mouse events
     if event == cv.EVENT_LBUTTONDOWN:
-        # check if on menu. else add to pressed buttons
-        if not menu.click(x, y):
+        # check if cursor is on menu. else add to pressed buttons
+        if not menu.click(x, y):  # click checks if the cursor clicks on a menu button and calls the associated function
             pressed.add("lmb")
     elif event == cv.EVENT_RBUTTONDOWN:
         pressed.add("rmb")
@@ -296,13 +332,12 @@ def mouse_callback(event, x, y, flags, param):
 # add the mouse callback function
 cv.setMouseCallback("gm", mouse_callback)
 
-# tracks ctrl key
-button_modifier = False
+
 last_time = 0  # time for dt calculation
 
 
-# does the key handling. returns True if the "esc" key has been pressed
 def handle_key(k):
+    """Does the key handling. returns True if the "esc" key has been pressed"""
     # this would be a way of cleanly handling functions that do multiple things depending on if a token is under the
     # mouse. it would allow a clean mapping of keys to functions.
     # def token_decorator(f1, f2):
@@ -312,11 +347,12 @@ def handle_key(k):
     #     else:
     #         f1()
 
-    # this dictionary maps the keys to the correct functions
+    # this dictionary maps the keys to the correct functions. this is where you can change keybindings (maybe we should
+    # have a menu function to overwrite these and store and load them from a settings file)
     key_to_function = {
         ord("m"): toggle_overview_map,
         ord("p"): toggle_pause,
-        ord("o"): toggle_overview_map,
+        ord("o"): toggle_preview,
         ord("f"): toggle_fullscreen,
         ord("x"): next_map,
         ord("z"): prev_map,
@@ -349,43 +385,52 @@ def handle_key(k):
                 key_to_function[k]()
     return False  # False means do not break main loop
 
-# the main loop of the program
+
+# the main loop of the program ===========================================================
 while True:
     # calculate dt
     dt = time.time() - last_time
     last_time = time.time()
+
+    # read key with delay to draw everything
     k = cv.waitKey(1)
-    if handle_key(k):  # if True esc. has been pressed
-        break
+
+    if handle_key(k):  # True means esc. has been pressed
+        break  # exit the program
 
     # draw fog if pressed
     if "lmb" in pressed:
-        game.curr_map().clear_fog(np.array((my, mx)), 60)
+        game.curr_map().clear_fog(np.array((my, mx)), brushsize)  # the clear fog functions clears a circle of fog
         viewer.update()
-    elif "rmb" in pressed:
-        game.curr_map().add_fog(np.array((my, mx)), 60)
+    elif "rmb" in pressed:  # add fog again
+        game.curr_map().add_fog(np.array((my, mx)), brushsize)
         viewer.update()
 
-    # add arrow:
-    if move_token or len(add_images):
-        n_img = viewer.gm_view.img.copy()
+    # post processing on the different images e.g. pings, arrows, menu etc. ===========================================
+    # copy image to restore later. so that the next post processing can start
+    # with a clean image even if the viewer does not get updates in the mean time
 
+    # gm view =================================================================
+    # at the moment the menu gets redrawn with every frame. this could be changed.
+
+    n_img = viewer.gm_view.img.copy()  # this should only happen if postprocessing is going to happen for sure
+
+    if move_token or len(add_images):  # blit the token that is being moved and all add. images
         for img, pos in add_images:
-            n_img[pos[1]:pos[1] + img.shape[0], pos[0]:pos[0] + img.shape[0], :] = img
+            viewer.gm_view.img[pos[1]:pos[1] + img.shape[0], pos[0]:pos[0] + img.shape[0], :] = img
 
         if move_token:
             t_pos = game.curr_map().token_pos(move_token)
             cv.arrowedLine(viewer.gm_view.img, (t_pos[1], t_pos[0]), (mx, my), (255, 0, 0), 3)
-        viewer.gm_view.show("gm")
-        viewer.gm_view.set_img(n_img)
-
     # render menu
-    n_img = viewer.gm_view.img.copy()
     menu.render(viewer.gm_view.img)
+    # show gm view image and restore old image
+
     viewer.gm_view.show("gm")
     viewer.gm_view.set_img(n_img)
 
-    if len(pings):
+    # main view ===========================================================
+    if len(pings):  # render all pings
         n_img = viewer.main_view.img.copy()
         # update pings
         for ping in pings:
@@ -398,5 +443,3 @@ while True:
 
 
 cv.destroyAllWindows()
-
-

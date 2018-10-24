@@ -7,6 +7,7 @@ from DNDMapTool.Token import Token, descrip_type
 import configparser as cfgp
 import re
 
+"""loads stuff from files"""
 
 # loads image from path and converts it to a numpy array. this also has some extra functionality
 def load_img(path, **kwargs):
