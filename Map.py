@@ -155,9 +155,17 @@ class Map(object):
         sfx = 1
         sfy = 1
 
+        # this checks the different kwargs.
+        # first check if there is the kwarg then check if it is true. this avoids errors because the second check
+        # of an and statement will be ignored if the first one is false:
+        # if "kwarg" in kwargs and kwargs["kwarg"]:
+        # alternatively:
+        # if "kwarg" in kwargs.keys() and kwarg["kwarg"]:
+
+        # choose the correct image either the dm or the normal map image.
         if "dm" in kwargs and kwargs["dm"] and np.any(self.dm_img):
             t_img = self.dm_img.copy()
-        else:
+        else:  # if the normal map is chosen determine its scale relative to the dm window
             t_img = self.img.copy()
             sfx = t_img.shape[1] / self.dm_img.shape[1]
             sfy = t_img.shape[0] / self.dm_img.shape[0]
@@ -166,12 +174,13 @@ class Map(object):
         if "tokens" in kwargs.keys() and kwargs["tokens"]:
             # display tokens
             for t, pos in self.tokens.items():
-                # use dx and dy if gridlines are allowed
+                # use dx and dy if gridlines are allowed (this should be added later on)
+                # blit does an alphaplit of one image onto another
                 t.blit(t_img, (int(pos[0] * sfy), int(pos[1] * sfx)), int(t.sx * sfx), int(t.sy * sfy))
 
-        zoomed_main = False
-        if not ("dm" in kwargs and kwargs["dm"] and np.any(self.dm_img)):
-            # zoom
+        zoomed_main = False  # remember if main has been zoomed. this could be replaced by "zoom" in kwargs
+        if not ("dm" in kwargs and kwargs["dm"] and np.any(self.dm_img)):  # only the normal map can be zoomed
+            # calculate translation
             if "trans_x" in kwargs:
                 offset_x = int(kwargs["trans_x"] * self.img.shape[1])
             else:
@@ -182,17 +191,21 @@ class Map(object):
             else:
                 offset_y = 0
 
+            # actual zoom (also add translation) by choosing a part of the image (indexing) and resizing it to full hd
             if "zoom" in kwargs:
                 zoomed_main = True
-                zoom = kwargs["zoom"]
+                zoom = kwargs["zoom"]  # get the zoom factor. larger means a smaller image
                 dx = self.img.shape[1] / zoom
                 dy = self.img.shape[0] / zoom
+
+                # calculate minimum and maximum indices
                 x_min = int((self.img.shape[1] - dx) / 2) + offset_x
                 x_max = int(x_min + dx)
                 y_min = int((self.img.shape[0] - dy) / 2) + offset_y
                 y_max = int(y_min + dy)
 
-                # clip
+                # clip (the way the image gets currently clipped means a stretching close to the border)
+                # the other option is to clip both the smallest and largest values
                 x_min = max(0, x_min)
                 x_min = min(self.img.shape[1], x_min)
                 x_max = min(self.img.shape[1], x_max)
@@ -203,37 +216,52 @@ class Map(object):
                 y_max = min(self.img.shape[0], y_max)
                 y_max = max(y_max, 0)
 
+                # actual resizing
                 t_img = cv.resize(t_img[y_min:y_max, x_min:x_max], (self.dm_img.shape[1], self.dm_img.shape[0]))
             else:
+                # no zooming. simpler resizing to max full hd
                 t_img = self.limit_size(t_img)
-        img_size = t_img.shape[:2]
+
+        # overlay gridlines
         if "gridlines" in kwargs.keys() and kwargs["gridlines"]:
             # make sure there is a grid for this image
-            if np.any(self.grid):
+            if np.any(self.grid):  # check if there is information in the grid template
                 if "grid_color" in kwargs.keys() and kwargs["grid_color"]:
                     color = kwargs["grid_color"]
                 else:
                     color = (50, 50, 50)  # standard gray color
+                # draw grid onto image using a flat color
                 t_img[self.grid] = color  # self.grid holds a boolean array in which the gridlines are predrawn
+
+        # add fog of war using alphablit
         if "fow" in kwargs.keys():
-            if kwargs["fow"].lower() == "tv":
-                # t_img = process.alpha_blend(self.old_map, t_img, cv.GaussianBlur(self.fog, (101, 101), 0))#
-                my_fog =  cv.GaussianBlur(self.fog, (101, 101), 0)
+            # there are two different versions of the fog. a simple darker one for the dm window and a more elaborate
+            # one for the main window e.g. "tv" window
+            if kwargs["fow"].lower() == "tv" or kwargs["fow"].lower() == "main":
+                # blur the fogmap (the edges will be fuzzy)
+                # this should not be done every drawing call. the best option would be to draw a fuzzy circle in the
+                # first place. this is one of the main reasons for slow drawing
+                my_fog = cv.GaussianBlur(self.fog, (101, 101), 0)
+
+                # if the main window is zoomed the fog also needs to be resized
                 if zoomed_main:
-                    # transfrom fog to fit with the transformed img:
+                    # transfrom fog to fit with the transformed img using the information from above:
+                    # for all transformations there should be one function!
                     x_min_fog = int(x_min / self.img.shape[0] * self.fog.shape[0])
                     x_max_fog = int(x_max / self.img.shape[0] * self.fog.shape[0])
                     y_min_fog = int(y_min / self.img.shape[0] * self.fog.shape[0])
                     y_max_fog = int(y_max / self.img.shape[0] * self.fog.shape[0])
                     my_fog = cv.resize(my_fog[y_min_fog:y_max_fog, x_min_fog:x_max_fog], (t_img.shape[1], t_img.shape[0]))
-                process.alpha_blend_nb(self.old_map, t_img, my_fog)
-            elif kwargs["fow"].lower() == "gm":
-                # t_img[self.fog.astype(np.bool)] //= 2  # make the fow regions darker for gm
-                process.darken_maks(t_img, self.fog)
+                process.alpha_blend_nb(self.old_map, t_img, my_fog)  # the actual alphablending of the image
+            elif kwargs["fow"].lower() == "gm":  # a simpler faster transparent fow
+                process.darken_maks(t_img, self.fog)  # darken the region that is in fog
+
+        # add a red border
         if "border" in kwargs and kwargs["border"]:
             # add red border
             t_img[self.border, :2] = 0
             t_img[self.border, 2] = 255
+        # add a rectangle that shows the are that is being  displayed in the main window
         if "dm" in kwargs and kwargs["dm"] and "zoom" in kwargs:
             if "trans_x" in kwargs:
                 offset_x = int(kwargs["trans_x"] * self.dm_img.shape[1])
