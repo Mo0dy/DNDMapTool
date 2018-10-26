@@ -1,5 +1,5 @@
 import cv2 as cv
-from DNDMapTool.ImProcessing import alpha_blend_nb
+from DNDMapTool.ImProcessing import alpha_blend_nb_general
 import numpy as np
 from copy import deepcopy
 
@@ -11,6 +11,8 @@ descriptors = {
     "race": ["human", "elv", "halfling", "dwarf"],
     "gender": ["male", "female"],
     "class": ["cleric", "wizard", "rogue", "fighter"],
+    "add": ["rangefinder"],
+    "ranges": ["circular"],
 }
 
 
@@ -78,9 +80,7 @@ class Token(object):
         source, alpha = self.get_to_size(sx, sy)
 
         # blit onto image relative to px and py as a midpoint
-        dx = sx // 2
-        dy = sy // 2
-        alpha_blend_nb(source, target[pos[0]-dy:pos[0]+dy, pos[1]-dx:pos[1]+dx], alpha)
+        alpha_blend_nb_general(source, target, alpha, px=pos[1] - sx//2, py=pos[0] - sy//2)
 
     def copy(self):
         return deepcopy(self)

@@ -54,6 +54,7 @@ def con_reg_edges(edges, r_arr, start_coor, inverse=False):
                         r_arr[tuple(coor)] = True
                         stack.append(n_coor)
 
+
 # blend F onto B unsing A as aplha
 def alpha_blend(F, B, A):
     a = A / 255
@@ -71,6 +72,54 @@ def alpha_blend_nb(F, B, A):
             a = A[i, j] / 255
             for c in range(F.shape[2]):
                 B[i, j, c] = a * F[i, j, c] + (1 - a) * B[i, j, c]
+
+
+def alpha_blend_nb_general(F, B, A, px=0, py=0):
+    """this function alphablends one image onto another. The images do not have to be the same size and can be
+    translated using px and py
+
+    :param F: the background
+    :param B: the foreground
+    :param A: alpha channel
+    :param px: translation x
+    :param py: translation y
+    :return:
+    """
+
+    # this invokes alpha_blend_nb_backend for the actual blending but clips the arrays first to avoid indexing problems.
+    if py >= B.shape[0] or px >= B.shape[1]:  # plausibility check (can't blit if you are completely off target)
+        return
+
+    # the min and max values of the area that will be blittet onto on B. They will be clipped to 0 and the max axis
+    # length
+    ymin = py
+    ymax = py + F.shape[0]
+    xmin = px
+    xmax = px + F.shape[1]
+
+    ymin_offset = 0
+    ymax_offset = 0
+    xmin_offset = 0
+    xmax_offset = 0
+
+    # calculate offsets for clipping F
+    if ymin < 0:
+        ymin_offset = abs(ymin)
+        ymin = 0
+    if ymax >= B.shape[0]:
+        ymax_offset = ymax - B.shape[0]
+        ymax = B.shape[0]
+    if xmin < 0:
+        xmin_offset = abs(xmin)
+        xmin = 0
+    if xmax >= B.shape[1]:
+        xmax_offset = xmax - B.shape[1]
+        xmax = B.shape[0]
+
+    Fprime = F[ymin_offset:F.shape[0] - ymax_offset, xmin_offset: F.shape[1] - xmax_offset]
+    Aprime = A[ymin_offset:A.shape[0] - ymax_offset, xmin_offset: A.shape[0] - xmax_offset]
+
+    alpha_blend_nb(Fprime, B[ymin:ymax, xmin:xmax], Aprime)
 
 
 @nb.guvectorize([(nb.uint8[:, :, :], nb.float64[:, :])], '(a,b,c),(a,b)', target="parallel", fastmath=True)

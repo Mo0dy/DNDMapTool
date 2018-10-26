@@ -78,7 +78,7 @@ class TokenBrowser(object):
             token = row * self.columns + column
 
             # add token to map
-            self.game.curr_map().add_token(self.tokens[token].copy(), (100, 100))
+            self.game.curr_map().add_token(self.tokens[token].copy(), (50, 500))
             return True
         return False
 

@@ -11,6 +11,20 @@ from DNDMapTool.Menu import Menu, Button
 
 """The entrypoint for the program"""
 
+# general notes:
+# there should be a state system tracking the states of the program.
+# at the moment all states are different independent variables such as:
+# move_token
+# pressed etc.
+# this could also include main menu / normal program stuff or that the next mouse click has some special meaning e.g.
+# select the resize function in the menu and then click the token that is going to be resized
+#
+# we should also have a better key handler in place as well as an event system
+#
+# we should find a way to query inputs e.g.: input name: "thomas". This means we would have to track if an input is
+# being queried and then isolate the keystrokes until [enter] is pressed. (State system)
+
+
 path = r"C:\Users\Felix\Google Drive\D&D\Stories"  # the path of the gamefiles that will be read
 # load the maps and add. information of this game. In the future this
 # could be input or done via a file manager
@@ -29,6 +43,7 @@ pings = []  # the pings that are currently being displayed
 
 # the brushsize for the drawing of the fog
 brushsize = 60
+selected_rangefinder = None  # used if a rangefinder is supposed to be resized
 
 # utility functions ==================================================================================================
 # defines a bunch of functions and then maps them to keys
@@ -128,6 +143,7 @@ def remove_token_or_reset():
         viewer.set_prop(Viewer.PROP_ZOOM, 1)
         viewer.set_prop(Viewer.PROP_TRANS_Y, 0)
         viewer.set_prop(Viewer.PROP_TRANS_X, 0)
+    viewer.update()
 
 
 def show_info_window():
@@ -156,6 +172,40 @@ def normal_brush():
 def coarse_brush():
     global brushsize
     brushsize = 200
+
+
+def select_rangefinder():
+    """Calls the scale rangefinder menu to scale a rangefinder selected rangefinder to a certain size"""
+    global selected_rangefinder
+    token = token_under_mouse()
+    if "add" in token.descriptors and token.descriptors["add"] == "rangefinder":
+        ranges_menu()
+        selected_rangefinder = token
+
+
+def set_range(range):
+    """Sets the size of a rangefinder to a certain range (radius etc.) depending on the scale and its properties
+
+    :param range: range in feet
+    :return:
+    """
+    # get scale information from the current map
+    x_pxper5feet = game.curr_map().x_pxper5feet
+    y_pxper5feet = game.curr_map().y_pxper5feet
+
+    if not (x_pxper5feet and y_pxper5feet):
+        print("set_range: ERROR NO SCALE INFORMATION FOR THIS MAP")
+        return
+
+    # calculate pixlesize:
+    pxx = int(x_pxper5feet / 5 * range)
+    pxy = int(x_pxper5feet / 5 * range)
+
+    if selected_rangefinder:
+        selected_rangefinder.sx = pxx
+        selected_rangefinder.sy = pxy
+    else:
+        print("set_range: ERROR NO RANGEFINDER SELECTED")
 
 
 # build menu ==================================================================================================
@@ -265,6 +315,31 @@ def settings_menu():
     menu.update()
 
 
+def ranges_menu():
+    def r1():
+        set_range(20)
+        main_menu()
+        viewer.update()
+
+    def r2():
+        set_range(60)
+        main_menu()
+        viewer.update()
+
+    def r3():
+        set_range(120)
+        main_menu()
+        viewer.update()
+
+    menu.menu = {
+        Button("R10"): r1,
+        Button("R30"): r2,
+        Button("R60"): r3,
+        Button("Return"): main_menu,
+    }
+    menu.update()
+
+
 # start the first menu
 main_menu()
 
@@ -368,6 +443,7 @@ def handle_key(k):
         ord("r"): remove_token_or_reset,
         ord("i"): show_info_window,
         ord("u"): ping,
+        ord("b"): select_rangefinder,
     }
 
     if k:

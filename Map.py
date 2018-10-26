@@ -30,6 +30,10 @@ class Map(object):
         self.old_map = None
         self.border = None  # this border can be used to i.e. add a red border for "unpaused"
 
+        # information of the scale.
+        self.y_pxper5feet = None
+        self.x_pxper5feet = None
+
         # grid settings =====================================
         # the grid is currently not in use but can be used to confine tokens to cells / measure distances reliably etc.
         # later on I want to add range finders that might use this (or direct pixel) as basis
