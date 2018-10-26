@@ -56,7 +56,7 @@ def toggle_preview():
 
 
 def toggle_fullscreen():
-    viewer.toggle_fullscreen()
+    Viewer.Viewer.toggle_fullscreen()
 
 
 def next_map():
