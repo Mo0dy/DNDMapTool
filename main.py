@@ -45,6 +45,7 @@ pings = []  # the pings that are currently being displayed
 brushsize = 60
 selected_rangefinder = None  # used if a rangefinder is supposed to be resized
 
+
 # utility functions ==================================================================================================
 # defines a bunch of functions and then maps them to keys
 def toggle_overview_map():
@@ -398,7 +399,14 @@ def mouse_callback(event, x, y, flags, param):
     elif event == cv.EVENT_MBUTTONUP:
         if move_token:  # if a token is being dragged drop it.
             token_at = token_under_mouse()
-            if not token_at or token_at == move_token:  # free space to place
+
+            # check if the space is free to place the token
+            # this should be a proper (rectangular / sprite) collision check.
+            # also there should be a token property that decides if collision is going to take place on a per token
+            # basis. This would allow the rangefinder tokens to blit over normal tokens.
+            # There should also be an order in which the tokens get blitted and functionality to change that order
+            # e.g. foreground background etc.
+            if not token_at or token_at == move_token:
                 game.curr_map().move_token(move_token, (my, mx))  # move the token
                 viewer.update()
             move_token = None
