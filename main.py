@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 from DNDMapTool.Map import Map
 from DNDMapTool.Game import Game
+from DNDMapTool.Token import Token
 from DNDMapTool.RecourceManager import load_game
 from DNDMapTool import Viewer
 from DNDMapTool.TokenBrowser import TokenBrowser, token_win_name
@@ -399,17 +400,31 @@ def mouse_callback(event, x, y, flags, param):
     elif event == cv.EVENT_MBUTTONUP:
         if move_token:  # if a token is being dragged drop it.
             token_at = token_under_mouse()
+            token_pos = game.curr_map().token_pos(token_at)
 
-            # check if the space is free to place the token
-            # this should be a proper (rectangular / sprite) collision check.
-            # also there should be a token property that decides if collision is going to take place on a per token
-            # basis. This would allow the rangefinder tokens to blit over normal tokens.
-            # There should also be an order in which the tokens get blitted and functionality to change that order
-            # e.g. foreground background etc.
-            if not token_at or token_at == move_token:
+            # check collision with all other tokens
+            colliding = False
+            for t, p in game.curr_map().tokens().items():
+                if t != token_at and Token.collision(token_at, t, token_pos, p):
+                    colliding = True
+                    break
+            # if no collision move the token
+            if not colliding:
                 game.curr_map().move_token(move_token, (my, mx))  # move the token
                 viewer.update()
+            # in any case the move action is stopped
             move_token = None
+
+            # # check if the space is free to place the token
+            # # this should be a proper (rectangular / sprite) collision check.
+            # # also there should be a token property that decides if collision is going to take place on a per token
+            # # basis. This would allow the rangefinder tokens to blit over normal tokens.
+            # # There should also be an order in which the tokens get blitted and functionality to change that order
+            # # e.g. foreground background etc.
+            # if not token_at or token_at == move_token:
+            #     game.curr_map().move_token(move_token, (my, mx))  # move the token
+            #     viewer.update()
+            # move_token = None
 
 
 # add the mouse callback function
