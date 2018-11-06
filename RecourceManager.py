@@ -12,6 +12,9 @@ import re
 # this should probably changed to just one path as this would make things much more straight forward
 
 
+load_img_filetype = ".jpg"
+
+
 def load_img(path, **kwargs):
     """loads image from path and converts it to a numpy array. this also has some extra functionality
 
@@ -27,7 +30,7 @@ def load_img(path, **kwargs):
     if "filetype" in kwargs:
         filetype = kwargs["filetype"]
     else:
-        filetype = ".jpg"
+        filetype = load_img_filetype
     if "load_alpha" in kwargs and kwargs["load_alpha"]:  # also loads alpha channel
         load_img = cv.imread(path + filetype, cv.IMREAD_UNCHANGED)
     else:

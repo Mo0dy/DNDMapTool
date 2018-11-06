@@ -114,7 +114,7 @@ def alpha_blend_nb_general(F, B, A, px=0, py=0):
         xmin = 0
     if xmax >= B.shape[1]:
         xmax_offset = xmax - B.shape[1]
-        xmax = B.shape[0]
+        xmax = B.shape[1]
 
     Fprime = F[ymin_offset:F.shape[0] - ymax_offset, xmin_offset: F.shape[1] - xmax_offset]
     Aprime = A[ymin_offset:A.shape[0] - ymax_offset, xmin_offset: A.shape[0] - xmax_offset]

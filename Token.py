@@ -103,3 +103,30 @@ class Token(object):
             cv.addText(img, "test", (row, 10), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             row += 50
         return img
+
+    @staticmethod
+    def collision(t1, t2, p1, p2):
+        """checks for a collision between two tokens
+
+        :param t1: token 1
+        :param t2: token 2
+        :param p1: Position of token 1
+        :param p2: Position of token 2
+        :return: True if there is a collision else False
+        """
+
+        # rangefinders can't collide
+        if "rangefinder" in t1.descriptors or "rangefinder" in t2.descriptors:
+            return False
+
+        # rectangular collision checking for now. This coule later be changed to a sprite based collision detection
+        # system
+        p1x = p1[0]
+        p1y = p1[1]
+        p2x = p2[0]
+        p2y = p2[1]
+
+        xcol = p1x + t1.sx >= p2x >= p1x or p2x + t2.sx >= p1x >= p2x
+        ycol = p1y + t1.sy >= p2y >= p1y or p2y + t2.sy >= p1y >= p2y
+
+        return xcol and ycol
