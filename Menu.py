@@ -55,7 +55,7 @@ class Menu(object):
         :return: True if button was clicked. otherwise return False
         """
         for k, b in self.menu.items():
-            if k.is_colliding(x, y):
+            if k.is_colliding(x - self.x, y - self.y):
                 b()
                 return True
         return False

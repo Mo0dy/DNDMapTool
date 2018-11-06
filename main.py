@@ -2,7 +2,6 @@ import cv2 as cv
 import numpy as np
 from DNDMapTool.Map import Map
 from DNDMapTool.Game import Game
-from DNDMapTool.Token import Token
 from DNDMapTool.RecourceManager import load_game
 from DNDMapTool import Viewer
 from DNDMapTool.TokenBrowser import TokenBrowser, token_win_name
@@ -29,7 +28,7 @@ from DNDMapTool.Menu import Menu, Button
 path = r"C:\Users\Felix\Google Drive\D&D\Stories"  # the path of the gamefiles that will be read
 # load the maps and add. information of this game. In the future this
 # could be input or done via a file manager
-game = load_game(path, "KaiOneShot310818")
+game = load_game(path, "LostMineOfPhandelver")
 token_b = TokenBrowser(game)  # create a new token browser. this also loads all available tokens
 viewer = Viewer.Viewer(game)  # create a new viewer. the viewer will render the map images according to properties
 # updating the viewer shows the images (the show routine should probably be separate or the post
@@ -399,21 +398,17 @@ def mouse_callback(event, x, y, flags, param):
             move_token = token_at
     elif event == cv.EVENT_MBUTTONUP:
         if move_token:  # if a token is being dragged drop it.
-            mtoken_pos = game.curr_map().token_pos(move_token)
-            collision = False
-            for t, p in game.curr_map().tokens.items():
-                if t != move_token:
-                    if Token.collision(t, move_token, p, mtoken_pos):
-                        collision = True
-                        break
+            token_at = token_under_mouse()
 
-            # token_at = token_under_mouse()
-            # if not token_at or token_at == move_token:  # free space to place
-            if not collision:
+            # check if the space is free to place the token
+            # this should be a proper (rectangular / sprite) collision check.
+            # also there should be a token property that decides if collision is going to take place on a per token
+            # basis. This would allow the rangefinder tokens to blit over normal tokens.
+            # There should also be an order in which the tokens get blitted and functionality to change that order
+            # e.g. foreground background etc.
+            if not token_at or token_at == move_token:
                 game.curr_map().move_token(move_token, (my, mx))  # move the token
                 viewer.update()
-            else:
-                print("COLLISION")
             move_token = None
 
 
