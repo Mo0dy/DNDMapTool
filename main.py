@@ -407,13 +407,14 @@ start_menu = Menu()
 
 def main_start_menu():
     button = Button("START")
-    button.x_size = 200
-    button.y_size = 100
-    button.x = 500
-    button.y = 400
     start_menu.menu = {
         button: start_game,
     }
+    menu.update()
+    button.x_size = 200
+    button.y_size = 100
+    # button.x = 500
+    # button.y = 400
 
 
 # event functions =============================================================================================
