@@ -37,14 +37,36 @@ viewer = Viewer.Viewer(game)  # create a new viewer. the viewer will render the 
 viewer.update()
 
 
-# additional images that will be blitted onto the view window (post processing):
-# tuples: (image, pos(x, y))
-add_images = []
-pings = []  # the pings that are currently being displayed
+# the mousestates describe what can currently be done with the mousebuttons / movements
+MOUSESTATE_NORMAL = 0
+MOUSESTATE_DRAW_FOG = 1
+MOUSESTATE_MOVE_TOKEN = 2
 
-# the brushsize for the drawing of the fog
-brushsize = 60
-selected_rangefinder = None  # used if a rangefinder is supposed to be resized
+GAMESTATE_NORMAL = 0
+GAMESTATE_MAIN_MENU = 1
+
+
+class Programstates(object):
+    def __init__(self):
+        self.gamestate = GAMESTATE_MAIN_MENU  # the main state describing what the program is doing
+
+        # additional images that will be blitted onto the view window (post processing):
+        # tuples: (image, pos(x, y))
+        self.add_images = []
+        self.pings = []  # the pings that are currently being displayed
+        # the brushsize for the drawing of the fog
+        self.brushsize = 60
+        self.selected_rangefinder = None  # used if a rangefinder is supposed to be resized
+        # store the mouse position if needed by other functions
+        self.mx = 0
+        self.my = 0
+
+        self.mousestates = MOUSESTATE_NORMAL
+        self.move_token = None  # True if a token is currently being dragged
+        # store pressed mousebuttons for drag and drop
+
+
+states = Programstates()
 
 
 # utility functions ==================================================================================================
@@ -149,40 +171,55 @@ def remove_token_or_reset():
 
 
 def show_info_window():
-    token = game.curr_map().token_at(mx, my)
+    token = game.curr_map().token_at(states.mx, states.my)
     if token:
         info = token.info_window()
         # draw information window():
-        add_images.append((info, (mx, my)))
+        states.add_images.append((info, (states.mx, states.my)))
 
 
 def ping():
-    px, py = viewer.trans_gm_main(mx, my)
-    pings.append(Ping(px, py))
+    px, py = viewer.trans_gm_main(states.mx, states.my)
+    states.pings.append(Ping(px, py))
 
 
 def fine_brush():
-    global brushsize
-    brushsize = 20
+    states.brushsize = 20
 
 
 def normal_brush():
-    global brushsize
-    brushsize = 60
+    states.brushsize = 60
 
 
 def coarse_brush():
-    global brushsize
-    brushsize = 200
+    states.brushsize = 200
+
+
+def drop_token():
+    """drops the token stored in states.move_token at the current position"""
+    token_at = token_under_mouse()
+    token_pos = game.curr_map().token_pos(token_at)
+
+    # check collision with all other tokens
+    colliding = False
+    for t, p in game.curr_map().tokens().items():
+        if t != token_at and Token.collision(token_at, t, token_pos, p):
+            colliding = True
+            break
+    # if no collision move the token
+    if not colliding:
+        game.curr_map().move_token(states.move_token, (states.my, states.mx))  # move the token
+        viewer.update()
+    # in any case the move action is stopped
+    states.move_token = None
 
 
 def select_rangefinder():
     """Calls the scale rangefinder menu to scale a rangefinder selected rangefinder to a certain size"""
-    global selected_rangefinder
     token = token_under_mouse()
     if "add" in token.descriptors and token.descriptors["add"] == "rangefinder":
         ranges_menu()
-        selected_rangefinder = token
+        states.selected_rangefinder = token
 
 
 def set_range(range):
@@ -203,11 +240,29 @@ def set_range(range):
     pxx = int(x_pxper5feet / 5 * range)
     pxy = int(x_pxper5feet / 5 * range)
 
-    if selected_rangefinder:
-        selected_rangefinder.sx = pxx
-        selected_rangefinder.sy = pxy
+    if states.selected_rangefinder:
+        states.selected_rangefinder.sx = pxx
+        states.selected_rangefinder.sy = pxy
     else:
         print("set_range: ERROR NO RANGEFINDER SELECTED")
+
+# statechanging utility functions ===========================
+def toggle_movetoken():
+    if states.mousestates == MOUSESTATE_MOVE_TOKEN:
+        states.mousestates = MOUSESTATE_NORMAL
+    else:
+        states.mousestates = MOUSESTATE_MOVE_TOKEN
+
+
+def toggle_draw_fog():
+    if states.mousestates == MOUSESTATE_DRAW_FOG:
+        states.mousestates = MOUSESTATE_NORMAL
+    else:
+        states.mousestates = MOUSESTATE_DRAW_FOG
+
+
+def start_game():
+    states.gamestate = GAMESTATE_NORMAL
 
 
 # build menu ==================================================================================================
@@ -233,6 +288,8 @@ def edit_menu():
         Button("Add Fog"): add_fog,
         Button("Clear Fog"): clear_fog,
         Button("Brushsize"): brush_menu,
+        Button("MoveToken"): toggle_movetoken,
+        Button("DrawFog"): toggle_draw_fog(),
         Button("return"): main_menu,
     }
     menu.update()
@@ -345,6 +402,19 @@ def ranges_menu():
 # start the first menu
 main_menu()
 
+start_menu = Menu()
+
+
+def main_start_menu():
+    button = Button("START")
+    button.x_size = 200
+    button.y_size = 100
+    button.x = 500
+    button.y = 400
+    start_menu.menu = {
+        button: start_game,
+    }
+
 
 # event functions =============================================================================================
 def token_mouse_callback(event, x, y, flags, param):
@@ -357,38 +427,40 @@ def token_mouse_callback(event, x, y, flags, param):
 # set mouse callback
 cv.setMouseCallback(token_win_name, token_mouse_callback)
 
-
-# store the mouse position if needed by other functions
-mx = 0
-my = 0
-# store pressed mousebuttons for drag and drop
 pressed = set()
-move_token = None  # True if a token is currently being dragged
 
 
 def token_under_mouse():
     """returns the token under the current mouse position or None if there isn't any"""
-    return game.curr_map().token_at(mx, my)
+    return game.curr_map().token_at(states.mx, states.my)
 
 
 def mouse_callback(event, x, y, flags, param):
     """the mouse callback function of the dm window"""
-    global mx, my, move_token
-
     # store mouse position in global variables for other functions to access
-    mx = x
-    my = y
+    states.mx = x
+    states.my = y
 
     # event holds the current mouse events
     if event == cv.EVENT_LBUTTONDOWN:
         # check if cursor is on menu. else add to pressed buttons
-        if not menu.click(x, y):  # click checks if the cursor clicks on a menu button and calls the associated function
+        if not menu.click(x, y) and not start_menu.click(x, y):  # click checks if the cursor clicks on a menu button and calls the associated function
             pressed.add("lmb")
+        if states.mousestates == MOUSESTATE_MOVE_TOKEN:  # if token can be moved it can be dropped:
+            if states.move_token:  # drop token
+                drop_token()
+            else:
+                # check if the current map has a token under mouse:
+                token_at = token_under_mouse()
+                if token_at:
+                    states.move_token = token_at
     elif event == cv.EVENT_RBUTTONDOWN:
         pressed.add("rmb")
     elif event == cv.EVENT_LBUTTONUP:
         if "lmb" in pressed:
             pressed.remove("lmb")
+        if states.mousestates == MOUSESTATE_MOVE_TOKEN and states.move_token:  # if token can be moved it can be dropped
+            drop_token()
     elif event == cv.EVENT_RBUTTONUP:
         if "rmb" in pressed:
             pressed.remove("rmb")
@@ -396,35 +468,10 @@ def mouse_callback(event, x, y, flags, param):
         # check if the current map has a token under mouse:
         token_at = token_under_mouse()
         if token_at:
-            move_token = token_at
+            states.move_token = token_at
     elif event == cv.EVENT_MBUTTONUP:
-        if move_token:  # if a token is being dragged drop it.
-            token_at = token_under_mouse()
-            token_pos = game.curr_map().token_pos(token_at)
-
-            # check collision with all other tokens
-            colliding = False
-            for t, p in game.curr_map().tokens().items():
-                if t != token_at and Token.collision(token_at, t, token_pos, p):
-                    colliding = True
-                    break
-            # if no collision move the token
-            if not colliding:
-                game.curr_map().move_token(move_token, (my, mx))  # move the token
-                viewer.update()
-            # in any case the move action is stopped
-            move_token = None
-
-            # # check if the space is free to place the token
-            # # this should be a proper (rectangular / sprite) collision check.
-            # # also there should be a token property that decides if collision is going to take place on a per token
-            # # basis. This would allow the rangefinder tokens to blit over normal tokens.
-            # # There should also be an order in which the tokens get blitted and functionality to change that order
-            # # e.g. foreground background etc.
-            # if not token_at or token_at == move_token:
-            #     game.curr_map().move_token(move_token, (my, mx))  # move the token
-            #     viewer.update()
-            # move_token = None
+        if states.move_token:  # if a token is being dragged drop it.
+            drop_token()
 
 
 # add the mouse callback function
@@ -447,6 +494,8 @@ def handle_key(k):
 
     # this dictionary maps the keys to the correct functions. this is where you can change keybindings (maybe we should
     # have a menu function to overwrite these and store and load them from a settings file)
+
+    # there should be a set of neighboured keys that change the mousestates
     key_to_function = {
         ord("m"): toggle_overview_map,
         ord("p"): toggle_pause,
@@ -497,48 +546,58 @@ while True:
     if handle_key(k):  # True means esc. has been pressed
         break  # exit the program
 
-    # draw fog if pressed
-    if "lmb" in pressed:
-        game.curr_map().clear_fog(np.array((my, mx)), brushsize)  # the clear fog functions clears a circle of fog
-        viewer.update()
-    elif "rmb" in pressed:  # add fog again
-        game.curr_map().add_fog(np.array((my, mx)), brushsize)
-        viewer.update()
+    if states.gamestate == GAMESTATE_NORMAL:
 
-    # post processing on the different images e.g. pings, arrows, menu etc. ===========================================
-    # copy image to restore later. so that the next post processing can start
-    # with a clean image even if the viewer does not get updates in the mean time
+        if states.mousestates == MOUSESTATE_DRAW_FOG:
+            # draw fog if pressed
+            if "lmb" in pressed:
+                game.curr_map().clear_fog(np.array((states.my, states.mx)), states.brushsize)  # the clear fog functions clears a circle of fog
+                viewer.update()
+            elif "rmb" in pressed:  # add fog again
+                game.curr_map().add_fog(np.array((states.my, states.mx)), states.brushsize)
+                viewer.update()
 
-    # gm view =================================================================
-    # at the moment the menu gets redrawn with every frame. this could be changed.
+        # post processing on the different images e.g. pings, arrows, menu etc. ===========================================
+        # copy image to restore later. so that the next post processing can start
+        # with a clean image even if the viewer does not get updates in the mean time
 
-    n_img = viewer.gm_view.img.copy()  # this should only happen if postprocessing is going to happen for sure
+        # gm view =================================================================
+        # at the moment the menu gets redrawn with every frame. this could be changed.
 
-    if move_token or len(add_images):  # blit the token that is being moved and all add. images
-        for img, pos in add_images:
-            viewer.gm_view.img[pos[1]:pos[1] + img.shape[0], pos[0]:pos[0] + img.shape[0], :] = img
+        n_img = viewer.gm_view.img.copy()  # this should only happen if postprocessing is going to happen for sure
 
-        if move_token:
-            t_pos = game.curr_map().token_pos(move_token)
-            cv.arrowedLine(viewer.gm_view.img, (t_pos[1], t_pos[0]), (mx, my), (255, 0, 0), 3)
-    # render menu
-    menu.render(viewer.gm_view.img)
-    # show gm view image and restore old image
+        if states.move_token or len(states.add_images):  # blit the token that is being moved and all add. images
+            for img, pos in states.add_images:
+                viewer.gm_view.img[pos[1]:pos[1] + img.shape[0], pos[0]:pos[0] + img.shape[0], :] = img
 
-    viewer.gm_view.show("gm")
-    viewer.gm_view.set_img(n_img)
+            if states.move_token:
+                t_pos = game.curr_map().token_pos(states.move_token)
+                cv.arrowedLine(viewer.gm_view.img, (t_pos[1], t_pos[0]), (states.mx, states.my), (255, 0, 0), 3)
+        # render menu
+        menu.render(viewer.gm_view.img)
+        # show gm view image and restore old image
 
-    # main view ===========================================================
-    if len(pings):  # render all pings
-        n_img = viewer.main_view.img.copy()
-        # update pings
-        for ping in pings:
-            if ping.iter(dt):
-                ping.blit(viewer.main_view.img)
-            else:
-                del ping
-        viewer.main_view.show("main")
-        viewer.main_view.set_img(n_img)
+        viewer.gm_view.show("gm")
+        viewer.gm_view.set_img(n_img)
 
+        # main view ===========================================================
+        if len(states.pings):  # render all pings
+            n_img = viewer.main_view.img.copy()
+            # update pings
+            for ping in states.pings:
+                if ping.iter(dt):
+                    ping.blit(viewer.main_view.img)
+                else:
+                    del ping
+            viewer.main_view.show("main")
+            viewer.main_view.set_img(n_img)
 
+        # clean up states:
+        if states.mousestates != MOUSESTATE_MOVE_TOKEN and states.move_token:
+            states.move_token = None
+    elif states.gamestate == GAMESTATE_MAIN_MENU:
+        n_img = viewer.gm_view.img.copy()  # this should only happen if postprocessing is going to happen for sure
+        start_menu.render(viewer.gm_view.img)
+        viewer.gm_view.show("gm")
+        viewer.gm_view.set_img(n_img)
 cv.destroyAllWindows()
