@@ -48,7 +48,7 @@ GAMESTATE_MAIN_MENU = 1
 
 class Programstates(object):
     def __init__(self):
-        self.gamestate = GAMESTATE_MAIN_MENU  # the main state describing what the program is doing
+        self.gamestate = GAMESTATE_NORMAL  # the main state describing what the program is doing
 
         # additional images that will be blitted onto the view window (post processing):
         # tuples: (image, pos(x, y))
@@ -197,19 +197,8 @@ def coarse_brush():
 
 def drop_token():
     """drops the token stored in states.move_token at the current position"""
-    token_at = token_under_mouse()
-    token_pos = game.curr_map().token_pos(token_at)
-
-    # check collision with all other tokens
-    colliding = False
-    for t, p in game.curr_map().tokens().items():
-        if t != token_at and Token.collision(token_at, t, token_pos, p):
-            colliding = True
-            break
-    # if no collision move the token
-    if not colliding:
-        game.curr_map().move_token(states.move_token, (states.my, states.mx))  # move the token
-        viewer.update()
+    game.curr_map().move_token(states.move_token, (states.my, states.mx))  # move the token
+    viewer.update()
     # in any case the move action is stopped
     states.move_token = None
 
@@ -245,6 +234,7 @@ def set_range(range):
         states.selected_rangefinder.sy = pxy
     else:
         print("set_range: ERROR NO RANGEFINDER SELECTED")
+
 
 # statechanging utility functions ===========================
 def toggle_movetoken():
@@ -415,6 +405,7 @@ def main_start_menu():
     button.y_size = 100
     # button.x = 500
     # button.y = 400
+main_start_menu()
 
 
 # event functions =============================================================================================
@@ -449,6 +440,7 @@ def mouse_callback(event, x, y, flags, param):
             pressed.add("lmb")
         if states.mousestates == MOUSESTATE_MOVE_TOKEN:  # if token can be moved it can be dropped:
             if states.move_token:  # drop token
+                print("dropping token")
                 drop_token()
             else:
                 # check if the current map has a token under mouse:

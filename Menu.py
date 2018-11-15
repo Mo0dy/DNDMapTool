@@ -13,7 +13,7 @@ class Button(object):
         self.x = 0
         self.y = 0
         self.name = name
-        self.img = bimg.copy()
+        self.img = cv.resize(bimg.copy(), (x_size, y_size))
         # render the name onto the button (this should probably have different font sizes according to line length)
         # another option would be making custom button images and load them from the names
         cv.putText(self.img, self.name, (5, self.y_size - 10), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
